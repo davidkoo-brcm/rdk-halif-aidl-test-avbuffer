@@ -1,0 +1,8 @@
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/mavbuffer.dir
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/AVBufferService.dir
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/edit_cache.dir
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/rebuild_cache.dir
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/list_install_components.dir
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/install.dir
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/install/local.dir
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/CMakeFiles/install/strip.dir

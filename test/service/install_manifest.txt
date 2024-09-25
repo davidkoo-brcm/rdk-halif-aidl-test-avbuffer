@@ -1,0 +1,2 @@
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/output/lib/libmavbuffer.so
+/home/ptu689/rdk-halif-binder-test-avbuffer/test/service/output/bin/AVBufferService
