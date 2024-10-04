@@ -116,6 +116,6 @@ build_avbuffer() {
  
  
 # Main Execution
-#clone_hal_repo
+clone_hal_repo
 build_aidl_hal
 build_avbuffer
