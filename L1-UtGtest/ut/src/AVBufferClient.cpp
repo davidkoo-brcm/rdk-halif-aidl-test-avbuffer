@@ -33,7 +33,6 @@
 #include <ut_log.h>
 #include <iostream>
 #include <getopt.h>
-#include <yaml-cpp/yaml.h>
 #include <unistd.h>
 
 #include "yaml_utils.h"

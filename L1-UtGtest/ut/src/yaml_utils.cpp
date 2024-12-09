@@ -1,6 +1,7 @@
 #include "yaml_utils.h"
 
 // Helper function to split the path into segments
+std::vector<std::string> splitPath(const std::string& path, char delimiter); 
 std::vector<std::string> splitPath(const std::string& path, char delimiter) {
     std::vector<std::string> segments;
     size_t start = 0;
@@ -16,280 +17,217 @@ std::vector<std::string> splitPath(const std::string& path, char delimiter) {
     return segments;
 }
 
-// Function to get the count of elements in a list based on the path
-int get_list_Count_from_profile(const YAML::Node& config, const std::string& path) {
-    std::vector<std::string> segments = splitPath(path, '.');
 
-    // Initial check for "components"
-    if (segments.empty() || segments[0] != "components") {
-        std::cerr << "Invalid path or incorrect format." << std::endl;
-        return -1;
-    }
+ut_kvp_instance_t * YAML::Node::p_instance = nullptr;
+/*
+Node YAML::LoadFile(std::string filename){
 
-    YAML::Node componentsNode = YAML::Clone(config["components"]);  // Clone the components node
-    if (!componentsNode || !componentsNode.IsSequence()) {
-        std::cerr << "components node not found or not a list." << std::endl;
-        return -1;
-    }
+	YAML::Node rtn; 
+       	YAML::Node::p_instance = ut_kvp_createInstance();
+	int status = ut_kvp_open( YAML::Node::p_instance, const_cast<char *>(filename.c_str()));
+	if(status != 0){
+		std::cerr << "Failed to create parser method for " << std::endl;
+	
+	}
+	return rtn;
 
-    // Search for the correct component based on the name (e.g., "IVideoDecoderManager")
-    YAML::Node targetNode;
-    bool found = false;
-    for (std::size_t i = 0; i < componentsNode.size(); ++i) {
-        YAML::Node component = componentsNode[i];
-        if (component["name"] && component["name"].as<std::string>() == segments[1]) {
-            targetNode = YAML::Clone(component);  // Clone target component
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
-        return -1;
-    }
-
-    YAML::Node currentNode = targetNode;
-    for (size_t i = 2; i < segments.size(); ++i) {
-        const std::string& segment = segments[i];
-
-        // Check if the segment is an index in the list
-        try {
-            int index = std::stoi(segment);
-            if (currentNode.IsSequence() && index < currentNode.size()) {
-                currentNode = YAML::Clone(currentNode[index]);  // Clone node before accessing index
-            } else {
-                std::cerr << "Invalid index or list out of bounds: " << index << std::endl;
-                return -1;
-            }
-        } catch (std::invalid_argument&) {
-            // If not an index, treat it as a key for a map
-            if (currentNode.IsMap() && currentNode[segment]) {
-                currentNode = YAML::Clone(currentNode[segment]);  // Clone node before accessing key
-            } else {
-                std::cerr << "Invalid path segment: " << segment << std::endl;
-                return -1;
-            }
-        }
-    }
-
-    if (currentNode.IsSequence()) {
-        return currentNode.size();  // Return the size if it's a sequence
-    } else if (currentNode.IsScalar()) {
-        //std::cout << "Reached scalar value: " << currentNode.as<std::string>() << std::endl;
-        return 1;  // Return 1 for a scalar value
-    } else {
-        std::cerr << "List or scalar not found at the given path." << std::endl;
-        return -1;
-    }
 }
 
-// Function to extract an integer value based on the path
-int get_integer_value_from_profile(const YAML::Node& config, const std::string& path) {
-    std::vector<std::string> segments = splitPath(path, '.');
+*/
 
-    // Initial check for "components"
-    if (segments.empty() || segments[0] != "components") {
-        std::cerr << "Invalid path or incorrect format." << std::endl;
-        return -1;
-    }
 
-    YAML::Node componentsNode = YAML::Clone(config["components"]);  // Clone the components node
-    if (!componentsNode || !componentsNode.IsSequence()) {
-        std::cerr << "components node not found or not a list." << std::endl;
-        return -1;
-    }
+// Function to get the count of elements in a list at the given path
+int get_list_Count_from_profile( YAML::Node d_conf, const std::string& path){
 
-    // Search for the correct component based on the name (e.g., "IVideoDecoderManager")
-    YAML::Node targetNode;
-    bool found = false;
-    for (std::size_t i = 0; i < componentsNode.size(); ++i) {
-        YAML::Node component = componentsNode[i];
-        if (component["name"] && component["name"].as<std::string>() == segments[1]) {
-            targetNode = YAML::Clone(component);  // Clone target component
-            found = true;
-            break;
-        }
-    }
+	//UNUSED(d_conf);
+//split path
+	int count = 0;
+	std::vector<std::string> segments = splitPath(path, '.');
 
-    if (!found) {
-        std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
-        return -1;
-    }
+	if (segments.empty() || segments[0] != "components") {
+		std::cerr << "Invalid path or incorrect format." << std::endl;
+		return -1;		 
+	}
 
-    YAML::Node currentNode = targetNode;
-    for (size_t i = 2; i < segments.size(); ++i) {
-        const std::string& segment = segments[i];
+	int total_componentes = ut_kvp_getListCount(YAML::Node::p_instance ,segments[0].c_str());
 
-        // Check if the segment is an index in the list
-        try {
-            int index = std::stoi(segment);
-            if (currentNode.IsSequence() && index < currentNode.size()) {
-                currentNode = YAML::Clone(currentNode[index]);  // Clone node before accessing index
-            } else {
-                std::cerr << "Invalid index or list out of bounds: " << index << std::endl;
-                return -1;
-            }
-        } catch (std::invalid_argument&) {
-            // If not an index, treat it as a key for a map
-            if (currentNode.IsMap() && currentNode[segment]) {
-                currentNode = YAML::Clone(currentNode[segment]);  // Clone node before accessing key
-            } else {
-                std::cerr << "Invalid path segment: " << segment << std::endl;
-                return -1;
-            }
-        }
-    }
+	if(total_componentes == 0){
+		std::cerr << "components node not found or not a list." << std::endl;
+		return -1;
+	}
 
-    if (currentNode.IsScalar() && currentNode.IsDefined()) {
-        try {
-            return currentNode.as<int>();  // Return the integer value
-        } catch (const YAML::BadConversion& e) {
-            std::cerr << "The value at the path is not an integer." << std::endl;
-            return -1;
-        }
-    } else {
-        std::cerr << "No scalar value found at the given path." << std::endl;
-        return -1;
-    }
+	bool found = false;
+	int i = 0;
+	char result_kvp[UT_KVP_MAX_ELEMENT_SIZE];
+		//we have node lets find propername
+	for(; i < total_componentes;i++){
+	
+	std::string to_find_key = segments[0] +"/"+ std::to_string(i) + "/" + "name";//segments[1];
+		if(0 == ut_kvp_getStringField(YAML::Node::p_instance, to_find_key.c_str(), result_kvp, UT_KVP_MAX_ELEMENT_SIZE)){
+		
+			if(segments[1].compare(result_kvp) == 0){
+				found = true;
+				break;		//check the count no
+			}
+		}
+	}
+	if(!found){
+		std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
+		return -1;
+	}
+
+	std::string to_find_final_key = segments[0] +"/"+ std::to_string(i) + "/" + segments[2];
+	count = ut_kvp_getListCount(YAML::Node::p_instance,to_find_final_key.c_str());
+
+	return count;
+
 }
+//  //
+//  // // Function to get an integer value from a YAML node based on a path
+int get_integer_value_from_profile( YAML::Node d_conf, const std::string& path){
+	std::vector<std::string> segments = splitPath(path, '.');
+	int count;
+	if (segments.empty() || segments[0] != "components") {
+		std::cerr << "Invalid path or incorrect format." << std::endl;
+		return -1;		 
+	}
+	int total_componentes = ut_kvp_getListCount(YAML::Node::p_instance ,segments[0].c_str());
+	if(total_componentes == 0){
+		std::cerr << "components node not found or not a list." << std::endl;
+		return -1;
+	}
+	bool found = false;
+	int i = 0;
+	char result_kvp[UT_KVP_MAX_ELEMENT_SIZE];
+		//we have node lets find propername
+	for(; i < total_componentes;i++){
+	
+	std::string to_find_key = segments[0] +"/"+ std::to_string(i) + "/" + "name";//segments[1];
+		if(0 == ut_kvp_getStringField(YAML::Node::p_instance, to_find_key.c_str(), result_kvp, UT_KVP_MAX_ELEMENT_SIZE)){
+		
+			if(segments[1].compare(result_kvp) == 0){
+				found = true;
+				break;		//check the count no
+			}
+		}
+	}
+	if(!found){
+		std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
+		return -1;
+	}
+	std::string to_find_final_key = segments[0] +"/"+ std::to_string(i) + "/" + segments[2] ;
+	count = ut_kvp_getListCount(YAML::Node::p_instance,to_find_final_key.c_str());
 
-// Function to extract a string value based on the path
-std::string get_string_value_from_profile(const YAML::Node& config, const std::string& path) {
-    std::vector<std::string> segments = splitPath(path, '.');
+	if(count > std::stoi(segments[3])){
+		std::string to_find_final_key = segments[0] +"/"+ std::to_string(i) + "/" + segments[2] + "/" + segments[3] +"/"+segments[4];
+		count = static_cast<int>(ut_kvp_getUInt32Field(YAML::Node::p_instance,to_find_final_key.c_str()));
+		return count;
+	}
+	else{
+		return -1;
+	}
 
-    // Initial check for "components"
-    if (segments.empty() || segments[0] != "components") {
-        std::cerr << "Invalid path or incorrect format." << std::endl;
-        return "";
-    }
+}
+//   //
+//   // // Function to extract a string value based on the path
+std::string get_string_value_from_profile( YAML::Node d_conf, const std::string& path){
 
-    YAML::Node componentsNode = YAML::Clone(config["components"]);  // Clone the components node
-    if (!componentsNode || !componentsNode.IsSequence()) {
-        std::cerr << "components node not found or not a list." << std::endl;
-        return "";
-    }
-
-    // Search for the correct component based on the name (e.g., "IVideoDecoderManager")
-    YAML::Node targetNode;
-    bool found = false;
-    for (std::size_t i = 0; i < componentsNode.size(); ++i) {
-        YAML::Node component = componentsNode[i];
-        if (component["name"] && component["name"].as<std::string>() == segments[1]) {
-            targetNode = YAML::Clone(component);  // Clone target component
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
-        return "";
-    }
-
-    YAML::Node currentNode = targetNode;
-    for (size_t i = 2; i < segments.size(); ++i) {
-        const std::string& segment = segments[i];
-
-        // Check if the segment is an index in the list
-        try {
-            int index = std::stoi(segment);
-            if (currentNode.IsSequence() && index < currentNode.size()) {
-                currentNode = YAML::Clone(currentNode[index]);  // Clone node before accessing index
-            } else {
-                std::cerr << "Invalid index or list out of bounds: " << index << std::endl;
+        std::vector<std::string> segments = splitPath(path, '.');
+        int count;
+        bool ret;
+        if (segments.empty() || segments[0] != "components") {
+                std::cerr << "Invalid path or incorrect format." << std::endl;
                 return "";
-            }
-        } catch (std::invalid_argument&) {
-            // If not an index, treat it as a key for a map
-            if (currentNode.IsMap() && currentNode[segment]) {
-                currentNode = YAML::Clone(currentNode[segment]);  // Clone node before accessing key
-            } else {
-                std::cerr << "Invalid path segment: " << segment << std::endl;
+        }
+        int total_componentes = ut_kvp_getListCount(YAML::Node::p_instance ,segments[0].c_str());
+        if(total_componentes == 0){
+                std::cerr << "components node not found or not a list." << std::endl;
                 return "";
-            }
         }
-    }
+        bool found = false;
+        int i = 0;
+        char result_kvp[UT_KVP_MAX_ELEMENT_SIZE];
+                //we have node lets find propername
+        for(; i < total_componentes;i++){
 
-    if (currentNode.IsScalar() && currentNode.IsDefined()) {
-        try {
-            return currentNode.as<std::string>();  // Return the string value
-        } catch (const YAML::BadConversion& e) {
-            std::cerr << "The value at the path is not a string." << std::endl;
-            return "";
+        std::string to_find_key = segments[0] +"/"+ std::to_string(i) + "/" + "name";//segments[1];
+                if(0 == ut_kvp_getStringField(YAML::Node::p_instance, to_find_key.c_str(), result_kvp, UT_KVP_MAX_ELEMENT_SIZE)){
+
+                        if(segments[1].compare(result_kvp) == 0){
+                                found = true;
+                                break;          //check the count no
+                        }
+                }
         }
-    } else {
-        std::cerr << "No scalar value found at the given path." << std::endl;
-        return "";
-    }
+        if(!found){
+                std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
+                return "";
+        }
+        std::string to_find_final_key = segments[0] +"/"+ std::to_string(i) + "/" + segments[2] ;
+        count = ut_kvp_getListCount(YAML::Node::p_instance,to_find_final_key.c_str());
+        //check is entry is vialbel in yaml then try to get value
+        if(count > std::stoi(segments[3])){
+                std::string to_find_final_key = segments[0] +"/"+ std::to_string(i) + "/" + segments[2] + "/" + segments[3] +"/"+segments[4];
+		char result_kvp[UT_KVP_MAX_ELEMENT_SIZE];
+                if(0 == ut_kvp_getStringField(YAML::Node::p_instance,to_find_final_key.c_str(),result_kvp, UT_KVP_MAX_ELEMENT_SIZE)){
+			std::string str(result_kvp);
+			return str;	
+		}
+		else{
+                	return "";
+		}
+        }
+        else{
+		return "";
+        }
+
+}
+//    //
+//    // // Function to extract a boolean value based on the path
+bool get_boolean_value_from_profile( YAML::Node d_conf, const std::string& path){
+	std::vector<std::string> segments = splitPath(path, '.');
+	int count;
+	bool ret;	
+	if (segments.empty() || segments[0] != "components") {
+		std::cerr << "Invalid path or incorrect format." << std::endl;
+		return false;
+	}
+	int total_componentes = ut_kvp_getListCount(YAML::Node::p_instance ,segments[0].c_str());
+	if(total_componentes == 0){
+		std::cerr << "components node not found or not a list." << std::endl;
+		return false;
+	}
+	bool found = false;
+	int i = 0;
+	char result_kvp[UT_KVP_MAX_ELEMENT_SIZE];
+		//we have node lets find propername
+	for(; i < total_componentes;i++){
+	
+	std::string to_find_key = segments[0] +"/"+ std::to_string(i) + "/" + "name";
+		if(0 == ut_kvp_getStringField(YAML::Node::p_instance, to_find_key.c_str(), result_kvp, UT_KVP_MAX_ELEMENT_SIZE)){
+		
+			if(segments[1].compare(result_kvp) == 0){
+				found = true;
+				break;		//check the count no
+			}
+		}
+	}
+	if(!found){
+		std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
+		return false;
+	}
+	std::string to_find_final_key = segments[0] +"/"+ std::to_string(i) + "/" + segments[2] ;
+	count = ut_kvp_getListCount(YAML::Node::p_instance,to_find_final_key.c_str());
+	//check is entry is vialbel in yaml then try to get value
+	if(count > std::stoi(segments[3])){
+		std::string to_find_final_key = segments[0] +"/"+ std::to_string(i) + "/" + segments[2] + "/" + segments[3] +"/"+segments[4];
+		ret = ut_kvp_getBoolField(YAML::Node::p_instance,to_find_final_key.c_str());
+		return ret;
+	}
+	else{
+		return false;
+	}
+
+	return false;
 }
 
-// Function to extract a boolean value based on the path
-bool get_boolean_value_from_profile(const YAML::Node& config, const std::string& path) {
-    std::vector<std::string> segments = splitPath(path, '.');
-
-    // Initial check for "components"
-    if (segments.empty() || segments[0] != "components") {
-        std::cerr << "Invalid path or incorrect format." << std::endl;
-        return false;
-    }
-
-    YAML::Node componentsNode = YAML::Clone(config["components"]);  // Clone the components node
-    if (!componentsNode || !componentsNode.IsSequence()) {
-        std::cerr << "components node not found or not a list." << std::endl;
-        return false;
-    }
-
-    // Search for the correct component based on the name (e.g., "IVideoDecoderManager")
-    YAML::Node targetNode;
-    bool found = false;
-    for (std::size_t i = 0; i < componentsNode.size(); ++i) {
-        YAML::Node component = componentsNode[i];
-        if (component["name"] && component["name"].as<std::string>() == segments[1]) {
-            targetNode = YAML::Clone(component);  // Clone target component
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        std::cerr << "Component with name " << segments[1] << " not found." << std::endl;
-        return false;
-    }
-
-    YAML::Node currentNode = targetNode;
-    for (size_t i = 2; i < segments.size(); ++i) {
-        const std::string& segment = segments[i];
-
-        // Check if the segment is an index in the list
-        try {
-            int index = std::stoi(segment);
-            if (currentNode.IsSequence() && index < currentNode.size()) {
-                currentNode = YAML::Clone(currentNode[index]);  // Clone node before accessing index
-            } else {
-                std::cerr << "Invalid index or list out of bounds: " << index << std::endl;
-                return false;
-            }
-        } catch (std::invalid_argument&) {
-            // If not an index, treat it as a key for a map
-            if (currentNode.IsMap() && currentNode[segment]) {
-                currentNode = YAML::Clone(currentNode[segment]);  // Clone node before accessing key
-            } else {
-                std::cerr << "Invalid path segment: " << segment << std::endl;
-                return false;
-            }
-        }
-    }
-
-    if (currentNode.IsScalar() && currentNode.IsDefined()) {
-        try {
-            return currentNode.as<bool>();  // Return the boolean value
-        } catch (const YAML::BadConversion& e) {
-            std::cerr << "The value at the path is not a boolean." << std::endl;
-            return false;
-        }
-    } else {
-        std::cerr << "No scalar value found at the given path." << std::endl;
-        return false;
-    }
-}

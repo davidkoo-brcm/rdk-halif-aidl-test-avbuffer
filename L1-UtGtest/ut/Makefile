@@ -9,11 +9,11 @@ BIN_DIR := $(ROOT_DIR)/build/bin
 LIB_DIR := $(ROOT_DIR)/build/$(TARGET)/lib
 BUILD_DIR := $(ROOT_DIR)/build/$(TARGET)/obj
 # TODO: make version is configurabe instead of current ???
-INC_DIRS := $(ROOT_DIR)/src/gen/hal/current/h $(ROOT_DIR)/build/usr/include $(ROOT_DIR)/../yaml-cpp/include
+INC_DIRS := $(ROOT_DIR)/src/gen/hal/current/h $(ROOT_DIR)/build/usr/include
 
 XLDFLAGS := -L$(ROOT_DIR)/build/usr/lib
 XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib
-XLDFLAGS += -lbinder -lutils -lyaml-cpp
+XLDFLAGS += -lbinder -lutils
 
 # required for std::optional
 CXXFLAGS := -std=c++17

@@ -45,13 +45,11 @@ declare -r LINUX_BINDER_OUT_DIR=`realpath ${LINUX_BINDER_OUT_DIR}`
 
 install_linux_binder()
 {
-#		declare -r INSTALL_PREFIX=${BUILD_DIR}/usr
-
 		echo "Install linux-binder \`service manager, headers and libraries'"
-		install -d ${INSTALL_PREFIX}/bin ${INSTALL_PREFIX}/lib ${INSTALL_PREFIX}/include
-		install -t ${INSTALL_PREFIX}/bin ${LINUX_BINDER_OUT_DIR}/bin/*
-		install -t ${INSTALL_PREFIX}/lib ${LINUX_BINDER_OUT_DIR}/lib/*
-		cp -apr ${LINUX_BINDER_OUT_DIR}/include/* ${INSTALL_PREFIX}/include/
+		install -d ${BUILD_INSTALL_PREFIX}/bin ${BUILD_INSTALL_PREFIX}/lib ${BUILD_INSTALL_PREFIX}/include
+		install -t ${BUILD_INSTALL_PREFIX}/bin ${LINUX_BINDER_OUT_DIR}/bin/*
+		install -t ${BUILD_INSTALL_PREFIX}/lib ${LINUX_BINDER_OUT_DIR}/lib/*
+		cp -apr ${LINUX_BINDER_OUT_DIR}/include/* ${BUILD_INSTALL_PREFIX}/include/
 }
 
 
@@ -85,23 +83,6 @@ generate_avbuffer_hal()
 
 }
 
-build_yaml_cpp()
-{
-	declare -r YAML_CPP_BUILD_DIR=${BUILD_DIR}/yaml-cpp
-	if [ ! -d "yaml-cpp" ]; then
-		git clone https://github.com/jbeder/yaml-cpp.git
-	fi
-
-	cmake \
-	-DYAML_BUILD_SHARED_LIBS=ON \
-	-DCMAKE_INSTALL_PREFIX=$BUILD_INSTALL_PREFIX \
-	-B $YAML_CPP_BUILD_DIR \
-	yaml-cpp
-
-	make -j`nproc` -C ${YAML_CPP_BUILD_DIR} install
-}
-
-
 build_ut_core()
 {
 	if [ ! -d ${UT_DIR}/ut-core ]; then
@@ -131,7 +112,6 @@ build_ut_core()
 
 install_test()
 {
-	declare -r BUILD_INSTALL_PREFIX=${BUILD_DIR}/usr
 	declare -r INSTALL_PATH=${BUILD_DIR}/bin
 
 	install -t ${INSTALL_PATH} ${BUILD_DIR}/usr/bin/*
@@ -140,7 +120,6 @@ install_test()
 }
 
 install_linux_binder
-build_yaml_cpp
 generate_avbuffer_hal
 build_ut_core
 make -C ${UT_DIR}
