@@ -76,7 +76,7 @@ generate_avbuffer_hal()
 	# Navigate to the build directory and invoke Makefile once
 	pushd ${HAL_BUILD_DIR}/gen/build/avbuffer_test
 	# Invoke Makefile to build the mock_service target
-	make -f ${TOP}/ut/Makefile.mock_service_avbuffer
+	make -j`nproc` -f ${TOP}/ut/Makefile.mock_service_avbuffer
 	popd
 
 }
