@@ -57,14 +57,13 @@ generate_avbuffer_hal()
 {
 	declare -r HAL_BUILD_DIR=${BUILD_DIR}/avbuffer_hal
 	declare -r AVBUFFER_VERSION=current
-	declare -r AIDL_GEN_DIR="${TOP}/ut/src/gen/hal/$AVBUFFER_VERSION"
+	declare -r AIDL_GEN_DIR="${BUILD_DIR}/avbuffer_gen"
 
 	if [ ! -d 'ut/hal' ]; then
 		git clone -b develop 'ssh://git@github.com/rdkcentral/rdk-halif-aidl.git' ut/hal
 	fi
 
 	for m in avbuffer audiodecoder videodecoder; do
-	# for m in audiodecoder; do
 		cmake \
 			-DAIDL_BIN=$AIDL_BIN \
 			-DAIDL_GEN_DIR=$AIDL_GEN_DIR \
@@ -73,7 +72,6 @@ generate_avbuffer_hal()
 			-B ${HAL_BUILD_DIR}/gen/build/${m}_test \
 			ut/hal
 	done
-	# TODO: to do check if any error
 
 	# Navigate to the build directory and invoke Makefile once
 	pushd ${HAL_BUILD_DIR}/gen/build/avbuffer_test

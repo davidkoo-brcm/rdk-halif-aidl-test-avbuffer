@@ -8,12 +8,15 @@ SRC_DIRS := $(ROOT_DIR)/src
 BIN_DIR := $(ROOT_DIR)/build/bin
 LIB_DIR := $(ROOT_DIR)/build/$(TARGET)/lib
 BUILD_DIR := $(ROOT_DIR)/build/$(TARGET)/obj
-# TODO: make version is configurabe instead of current ???
-INC_DIRS := $(ROOT_DIR)/src/gen/hal/current/h $(ROOT_DIR)/build/usr/include
+INC_DIRS := $(ROOT_DIR)/build/avbuffer_gen/h
+INC_DIRS += $(ROOT_DIR)/build/usr/include
 
 XLDFLAGS := -L$(ROOT_DIR)/build/usr/lib
 XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib
 XLDFLAGS += -lbinder -lutils
+XLDFLAGS += -lavbufferaidl
+XLDFLAGS += -laudiodecoderaidl
+XLDFLAGS += -lvideodecoderaidl
 
 # required for std::optional
 CXXFLAGS := -std=c++17
