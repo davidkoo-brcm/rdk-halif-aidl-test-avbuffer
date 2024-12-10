@@ -16,14 +16,14 @@ servicemanager_pid=$!
 # Need to wait some time for the service to be ready
 sleep 2
 
-echo "Eexecute [AudioDecoderService]"
-${RUN_DIR}/AudioDecoderService &
-AudioDecoderService_pid=$!
+echo "Eexecute [AVBufferService]"
+${RUN_DIR}/AVBufferService &
+AVBufferService_pid=$!
 # Need to wait some time for the service to be ready
 sleep 2
 
-echo "Eexecute [L1_audiodecoder]"
-${RUN_DIR}/L1_audiodecoder
+echo "Eexecute [L1_avbuffer]"
+${RUN_DIR}/L1_avbuffer -p config.yaml
 
 # cleanup
-kill -9 $servicemanager_pid $AudioDecoderService_pid
+kill -9 $servicemanager_pid $AVBufferService_pid
