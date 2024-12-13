@@ -4,12 +4,15 @@
 
 #include <ut_kvp_profile.h>
 #include <ut_kvp.h>
-
-
-
 #include <vector>
 #include <string>
 #include <iostream>
+
+#define UNUSED(x) (void)(x) // Define the UNUSED macro
+
+
+// dummy yaml class to make api direct replaceble in client
+
 class YAML{
 	public :
 	class BadFile : public std::exception{
@@ -19,7 +22,7 @@ class YAML{
 	
 	};		
 	class ParserException : public std::exception{
-
+	
 	};
 	class Node{
 		
