@@ -35,7 +35,6 @@
 #include <getopt.h>
 #include <unistd.h>
 
-#include "yaml_utils.h"
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
 #include <binder/IPCThreadState.h>
@@ -1362,17 +1361,77 @@ TEST_F(L1AVBufferPoolManagementTestSuite, test_l1_avbuffer_positive_1_onSpaceAva
     ASSERT_TRUE(status.isOk());
 }
 
+std::vector<std::string> splitPath(const std::string& path, char delimiter) {
+        std::vector<std::string> segments;
+        size_t start = 0;
+        size_t end = path.find(delimiter);
+
+        while (end != std::string::npos) {
+                segments.push_back(path.substr(start, end - start));
+                start = end + 1;
+                end = path.find(delimiter, start);
+        }
+
+        segments.push_back(path.substr(start));
+        return segments;
+}
+
+
+int createComponentMap( ut_kvp_instance_t * p_instance, std::map<std::string, int> &l_compMap){
+
+        char result_kvp[UT_KVP_MAX_ELEMENT_SIZE];
+        std::string key;
+        int total_componentes = ut_kvp_getListCount(p_instance ,"components");
+        if(total_componentes == 0){
+                std::cerr << "components node not found or not a list." << std::endl;
+                return -1;
+        }
+        for(int i = 0; i < total_componentes;i++){
+                key.clear();
+                key = "components/"+ std::to_string(i) + "/name";
+                if(0 == ut_kvp_getStringField(p_instance, key.c_str(), result_kvp, UT_KVP_MAX_ELEMENT_SIZE)){
+                        l_compMap.insert({std::string(result_kvp),i});
+                }
+        }
+        return 0;
+}
+
+int updatedPath(std::string &path, const std::map<std::string, int> &l_compMap){
+
+        std::vector<std::string> segments = splitPath(path, '.');
+        // Check if we have enough segments to perform the update
+        if (segments.size() < 2) {
+                std::cerr << "Error: Path has insufficient segments for update." << std::endl;
+                return -1;
+        }
+        // Check if the componentMap contains the second segment
+        auto it = l_compMap.find(segments[1]);
+        if (it == l_compMap.end()) {
+                std::cerr << "Error: Component " << segments[1] << " not found in component map." << std::endl;
+                return -1;
+        }
+
+        std::string rtn;
+        segments[1] = std::to_string(l_compMap.at(segments[1]));
+        rtn += segments[0];
+        for(int j = 1;j< segments.size();j++){
+                rtn += "/"+ segments[j];
+        }
+        path.clear();
+        path = rtn;
+        return 0;
+}
+
 int main(int argc, char **argv) 
 {
 
-    std::string yaml_file;
-    int opt;
     int result1,result2,result3;
     int videodecoderId;
     int audiodecoderId;
     int videodecodercount;
     int audiodecodercount;
-
+    std::map<std::string , int> componentMap;
+    
     std::vector<int> videodecoderIndexes;
     std::vector<int> audiodecoderIndexes;
 
@@ -1382,55 +1441,54 @@ int main(int argc, char **argv)
     std::string nonsecureheappath = "components.IAVBuffer.non-secure heap bytes";
 
 
-    while ((opt = getopt(argc, argv, "p:")) != -1) 
-    {
-        switch (opt) 
-        {
-            case 'p':
-                yaml_file = optarg;
-                break;
-            default:
-                std::cerr << "Usage: " << argv[0] << " -p <yaml_file>" << std::endl;
-                return 1;
-        }
-    }
-    
+       
     android::ProcessState::self()->startThreadPool();
-    if (!yaml_file.empty()) 
-    {
-	UT_init(argc, argv);  
-    	getService();
+    UT_init(argc, argv);
+    ut_kvp_instance_t *config = ut_kvp_profile_getInstance();
 
-        try
-        {
-            YAML::Node config = YAML::LoadFile(yaml_file);
-            videodecodercount = get_list_Count_from_profile(config,videodecoderpath);
+    if (config != nullptr) 
+    {
+    
+        if(-1 == createComponentMap(config, componentMap)){
+                return -1;
+        }
+        if(-1 == updatedPath(videodecoderpath, componentMap)){
+                std::cerr << "Error: yaml not have videodecoder config\n";
+                return -1;
+        }
+            updatedPath(audiodecoderpath, componentMap);
+            updatedPath(secureheappath, componentMap);
+            updatedPath(nonsecureheappath, componentMap);
+
+    	    getService();
+
+            videodecodercount = ut_kvp_getListCount(config,videodecoderpath.c_str());
             if (videodecodercount != -1) 
             {
                 std::cout << "Count of videodecoder in the profile: " << videodecodercount << std::endl;        
                 for (int i = 0; i < videodecodercount; ++i) 
                 {
                     std::string videodecoder_id_path = videodecoderpath + "."+ std::to_string(i) + ".id";
-                    videodecoderId = get_integer_value_from_profile(config,videodecoder_id_path);
+                    videodecoderId = ut_kvp_getUInt32Field(config,videodecoder_id_path.c_str());
                     videodecoderIndexes.push_back(videodecoderId);
                 }
             }
 
-            audiodecodercount = get_list_Count_from_profile(config,audiodecoderpath);
+            audiodecodercount = ut_kvp_getListCount(config,audiodecoderpath.c_str());
             if (audiodecodercount != -1) 
             {
                 std::cout << "Count of audiodecoder in the profile: " << audiodecodercount << std::endl;        
                 for (int i = 0; i < audiodecodercount; ++i) 
                 {
                     std::string audiodecoder_id_path = audiodecoderpath + "."+ std::to_string(i) + ".id";
-                    audiodecoderId = get_integer_value_from_profile(config,audiodecoder_id_path);
+                    audiodecoderId = ut_kvp_getUInt32Field(config,audiodecoder_id_path.c_str());
                     audiodecoderIndexes.push_back(audiodecoderId);
                 }
 
             }
 
-            secureheapbytes = get_integer_value_from_profile(config,secureheappath);
-            nonsecureheapbytes = get_integer_value_from_profile(config,nonsecureheappath);
+            secureheapbytes = ut_kvp_getUInt32Field(config,secureheappath.c_str());
+            nonsecureheapbytes = ut_kvp_getUInt32Field(config,nonsecureheappath.c_str());
 
             for (int videoindex : videodecoderIndexes) 
             {
@@ -1449,20 +1507,7 @@ int main(int argc, char **argv)
             ::testing::GTEST_FLAG(filter) = "L1AVBufferTestSuite.*";
             int result3 = static_cast<int>(UT_run_tests());
             return (result1 || result2 || result3);
-        }
-        catch (const YAML::BadFile& e) 
-        {
-            std::cerr << "Error: Could not open file " << yaml_file << ": " << e.what() << std::endl;
-        } 
-        catch (const YAML::ParserException& e) 
-        {
-            std::cerr << "Error: Parsing error in file " << yaml_file << ": " << e.what() << std::endl;
-        } 
-        catch (...) 
-        {
-            std::cerr << "An unknown error occurred." << std::endl;
-        }
-	}
+    }
     else
     {
         std::cout <<"USAGE: ./AVBufferClient -p <config-file>" <<std::endl;
