@@ -16,14 +16,14 @@ servicemanager_pid=$!
 # Need to wait some time for the service to be ready
 sleep 2
 
-echo "Eexecute [AVBufferService]"
-${RUN_DIR}/AVBufferService &
-AVBufferService_pid=$!
+echo "Eexecute [EmulateAVBufferService]"
+${RUN_DIR}/EmulateAVbufferService &
+AvBufferService_pid=$!
 # Need to wait some time for the service to be ready
 sleep 2
 
-echo "Eexecute [L1_avbuffer]"
-${RUN_DIR}/L1_avbuffer -p config.yaml
+echo "Eexecute [hal_test]"
+${RUN_DIR}/hal_test -p profiles/hfp-avbuffer.yaml
 
 # cleanup
 kill -9 $servicemanager_pid $AVBufferService_pid
