@@ -1,10 +1,11 @@
 TARGET ?= linux
 VARIANT := CPP
 
-TARGET_EXEC := hal_test
+TARGET_EXEC := vts_avbuffer_hal_test
 
 ROOT_DIR := $(CURDIR)
 SRC_DIRS := $(ROOT_DIR)/src
+SRC_DIRS += $(ROOT_DIR)/test
 BIN_DIR := $(ROOT_DIR)/build/bin
 LIB_DIR := $(ROOT_DIR)/build/$(TARGET)/lib
 BUILD_DIR := $(ROOT_DIR)/build/$(TARGET)/obj
@@ -13,6 +14,7 @@ INC_DIRS := $(ROOT_DIR)/build/avbuffer_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/videodecoder_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/audiodecoder_gen/current/h
 INC_DIRS += $(ROOT_DIR)/build/usr/include
+INC_DIRS += $(ROOT_DIR)/src/
 
 XLDFLAGS := -L$(ROOT_DIR)/build/usr/lib
 XLDFLAGS += -Wl,-rpath-link=$(ROOT_DIR)/build/usr/lib

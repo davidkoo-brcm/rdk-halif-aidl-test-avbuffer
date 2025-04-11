@@ -23,7 +23,7 @@ AvBufferService_pid=$!
 sleep 2
 
 echo "Eexecute [hal_test]"
-${RUN_DIR}/hal_test -p profiles/hfp-avbuffer.yaml
+${RUN_DIR}/vts_avbuffer_hal_test $@
 
 # cleanup
 kill -9 $servicemanager_pid $AVBufferService_pid
