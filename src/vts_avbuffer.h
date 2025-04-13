@@ -276,6 +276,100 @@ do { \
         UT_ASSERT_FALSE(_aidl_return); \
     } while (0)
 
+#define AVBUFFER_TRIMSIZE_SUCCESS(avBufferManager, bufferHandle, newSize) \
+    do { \
+        bool _aidl_return = false; \
+        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
+        ::android::binder::Status status = avBufferManager->trimSize(bufferHandle, newSize, &_aidl_return); \
+        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+        UT_ASSERT_TRUE(_aidl_return); \
+    } while (0)
+
+#define AVBUFFER_TRIMSIZE_FAILURE(avBufferManager, bufferHandle, newSize, exception) \
+    do { \
+        bool _aidl_return = false; \
+        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
+        ::android::binder::Status status = avBufferManager->trimSize(bufferHandle, newSize, &_aidl_return); \
+        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        UT_ASSERT_FALSE(_aidl_return); \
+    } while (0)
+
+#define AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult) \
+    do { \
+        UT_LOG_INFO("Calling isValid(IN:bufferHandle:[%lld], OUT:_aidl_return[])", bufferHandle); \
+        ::android::binder::Status status = avBufferManager->isValid(bufferHandle, &isValidResult); \
+        UT_LOG_INFO("Result isValid(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    bufferHandle, UT_Control_GetMapString(bool_mapTable, isValidResult), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define AVBUFFER_GETALLOCLIST_SUCCESS(avBufferManager, poolHandle, allocList) \
+    do { \
+        UT_LOG_INFO("Calling getAllocList with video pool handle (IN:poolHandle:[%d], OUT:allocList[])", poolHandle.handle); \
+        ::android::binder::Status status = avBufferManager->getAllocList(poolHandle, &allocList); \
+        UT_LOG_INFO("Result getAllocList(IN:poolHandle:[%d], OUT:allocList[size:%zu]), status:[isOK:%s, exception:%s]", \
+                    poolHandle.handle, allocList.size(), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define AVBUFFER_GETALLOCLIST_FAILURE(avBufferManager, poolHandle, allocList, exception) \
+    do { \
+        UT_LOG_INFO("Calling getAllocList with video pool handle (IN:poolHandle:[%d], OUT:allocList[])", poolHandle.handle); \
+        ::android::binder::Status status = avBufferManager->getAllocList(poolHandle, &allocList); \
+        UT_LOG_INFO("Result getAllocList(IN:poolHandle:[%d], OUT:allocList[size:%zu]), status:[isOK:%s, exception:%s]", \
+                    poolHandle.handle, allocList.size(), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        UT_ASSERT_TRUE(allocList.empty()); \
+    } while (0)
+
+#define AVBUFFER_CALCULATESHA_SUCCESS(avBufferManager, poolHandle, sha1Result) \
+    do { \
+        UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[%lld], OUT:sha1Result[])", poolHandle); \
+        ::android::binder::Status status = avBufferManager->calculateSHA1(poolHandle, &sha1Result); \
+        UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[%lld], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \
+                    poolHandle, sha1Result.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        if (status.isOk()) { \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+            UT_ASSERT_FALSE(sha1Result.empty()); \
+        } else { \
+            UT_ASSERT_EQUAL(status.exceptionCode(), ::android::binder::Status::EX_UNSUPPORTED_OPERATION); \
+            UT_ASSERT_TRUE(sha1Result.empty()); \
+        } \
+    } while (0)
+
+#define AVBUFFER_CALCULATESHA_FAILURE(avBufferManager, poolHandle, sha1Result, exception) \
+    do { \
+        UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[%lld], OUT:sha1Result[])", poolHandle); \
+        ::android::binder::Status status = avBufferManager->calculateSHA1(poolHandle, &sha1Result); \
+        UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[%lld], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \
+                    poolHandle, sha1Result.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        if(status.exceptionCode() != ::android::binder::Status::EX_UNSUPPORTED_OPERATION) { \
+            UT_ASSERT_FALSE(status.isOk()); \
+            UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+            UT_ASSERT_TRUE(sha1Result.empty()); \
+        } \
+    } while (0)
+
 #endif //__VTS_AVBUFFER_H__
 
 /** @} */ // End of AV_BUFFER_HALTEST_HEADER

@@ -1003,30 +1003,50 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
  * | 02 | Call trimSize with a valid buffer handle and minimum valid newSize | bufferHandle = mBufferHandle, newSize = 1, aidl_return = false | status.isOk() = true, aidl_return = true | Should Pass |
  * | 03 | Call trimSize with a valid buffer handle and newSize equal to originalSize | bufferHandle = mBufferHandle, newSize = 1024, aidl_return = false | status.isOk() = true, aidl_return = true | Should Pass |
  */
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, trimSize_pos)
+UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
 {
-    bool aidl_return = false;
-    int32_t originalSize = 1024; // Assuming the original size from alloc() is 1024 bytes
+    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    ::com::rdk::hal::avbuffer::Pool videoPool;
+    ::com::rdk::hal::avbuffer::Pool audioPool;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    int32_t size = 1024;
+    int32_t new_size = 2048;
+    bool secureHeap = true;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
+
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
+
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
     // Test Case 1: Positive Scenario - Valid bufferHandle and newSize
-    int32_t newSize = 512; // A valid size less than the original size
-    UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return)", mVideoBufferHandle, newSize);
-    ::android::binder::Status status = gAVBufferManager->trimSize(mVideoBufferHandle, newSize, &aidl_return);
-    UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                mVideoBufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_TRUE(aidl_return);
+    new_size = size - 128;
+    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
+    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
+    new_size = size;
+    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
+    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
 
     // Test Case 2: Positive Scenario - Minimum valid newSize
-    newSize = 1; // Minimum valid size greater than 0
-    UT_LOG_INFO("Calling trimSize with audio buffer handle (IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return)", mAudioBufferHandle, newSize);
-    status = gAVBufferManager->trimSize(mAudioBufferHandle, newSize, &aidl_return);
-    UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                mAudioBufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_TRUE(aidl_return);
+    new_size = 1;
+    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
+    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
+
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
@@ -1052,70 +1072,65 @@ UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, trimSize_pos)
 * | 02 | Attempt to trim size with a valid buffer handle but invalid new size (zero) | bufferHandle = mBufferHandle, newSize = 0 | aidl_return = false, status.isOk() = false | Should Fail |
 * | 03 | Attempt to trim size with a valid buffer handle but new size greater than original size | bufferHandle = mBufferHandle, newSize = 2048 | aidl_return = false, status.isOk() = false | Should Fail |
 */
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_negative_trimSize) {
-    bool aidl_return = false;
-    ::android::binder::Status status;
+UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
+{
+    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    ::com::rdk::hal::avbuffer::Pool videoPool;
+    ::com::rdk::hal::avbuffer::Pool audioPool;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    int32_t size = 1024;
+    int32_t new_size = size;
+    bool secureHeap = true;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
+
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
+
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+
+    int64_t invalidBufferHandle = videobufferHandle + 1; // Assuming this is not the last allocated
 
     // Negative Scenario - Invalid bufferHandle (not last allocated)
-    int64_t invalidBufferHandle = mVideoBufferHandle + 1; // Assuming this is not the last allocated
-    int32_t validNewSize = 512; // A valid size less than or equal to the original size
-
-    UT_LOG_INFO("Calling trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return)", invalidBufferHandle, validNewSize);
-    status = gAVBufferManager->trimSize(invalidBufferHandle, validNewSize, &aidl_return);
-    UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                invalidBufferHandle, validNewSize, UT_Control_GetMapString(bool_mapTable, aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_FALSE(aidl_return);
-    UT_ASSERT_FALSE(status.isOk());
+    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, invalidBufferHandle, new_size, Status::EX_NONE);
 
     // Negative Scenario - Invalid newSize (zero) -  Video buffer handle
-    int64_t validBufferHandle = mVideoBufferHandle; // The last allocated handle
-    int32_t invalidNewSizeZero = 0; // Invalid size
-
-    UT_LOG_INFO("Calling trimSize with video buffer handle (IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return)", validBufferHandle, invalidNewSizeZero);
-    status = gAVBufferManager->trimSize(validBufferHandle, invalidNewSizeZero, &aidl_return);
-    UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                validBufferHandle, invalidNewSizeZero, UT_Control_GetMapString(bool_mapTable, aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_FALSE(aidl_return);
-    UT_ASSERT_FALSE(status.isOk());
+    new_size = 0;
+    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
 
     // Negative Scenario - Invalid newSize (greater than original size)
-    int32_t invalidNewSizeGreater = 2048; // Greater than the original size of 1024
-
-    UT_LOG_INFO("Calling trimSize with video buffer handle (IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return)", validBufferHandle, invalidNewSizeGreater);
-    status = gAVBufferManager->trimSize(validBufferHandle, invalidNewSizeGreater, &aidl_return);
-    UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                validBufferHandle, invalidNewSizeGreater, UT_Control_GetMapString(bool_mapTable, aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_FALSE(aidl_return);
-    UT_ASSERT_FALSE(status.isOk());
+    new_size = size + 1;
+    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
 
     // Negative Scenario - Invalid newSize (zero) - Audio buffer handle
-    validBufferHandle = mAudioBufferHandle; // The last allocated handle
-
-    UT_LOG_INFO("Calling trimSize with video buffer handle (IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return)", validBufferHandle, invalidNewSizeZero);
-    status = gAVBufferManager->trimSize(validBufferHandle, invalidNewSizeZero, &aidl_return);
-    UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                validBufferHandle, invalidNewSizeZero, UT_Control_GetMapString(bool_mapTable, aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_FALSE(aidl_return);
-    UT_ASSERT_FALSE(status.isOk());
+    new_size = 0;
+    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
 
     // Negative Scenario - Invalid newSize (greater than original size)
-    UT_LOG_INFO("Calling trimSize with video buffer handle (IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return)", validBufferHandle, invalidNewSizeGreater);
-    status = gAVBufferManager->trimSize(validBufferHandle, invalidNewSizeGreater, &aidl_return);
-    UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                validBufferHandle, invalidNewSizeGreater, UT_Control_GetMapString(bool_mapTable, aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_FALSE(aidl_return);
-    UT_ASSERT_FALSE(status.isOk());
+    new_size = size + 1;
+    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
+
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
  * @brief Test the positive scenario of freeing a video buffer.
  *
- * This test verifies the successful execution of the `free` API for video buffer management. It ensures that the buffer is correctly freed and the return values are as expected.
+ * This test verifies the successful execution of the `free` API for video buffer management.
+ * It ensures that the buffer is correctly freed and the return values are as expected.
  *
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 017@n
@@ -1134,51 +1149,46 @@ UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_negative_trim
  * | 04 | Verify that the status is OK. | status.isOk() = true | Assertion should pass | Should Pass |
  * | 05 | Verify that the _aidl_return is true. | _aidl_return = true | Assertion should pass | Should Pass |
  */
-UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_positive_free) {
-    bool _aidl_return = false;
-
-    int64_t videobufferHandle;
+UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
+{
+    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    ::com::rdk::hal::avbuffer::Pool videoPool;
+    ::com::rdk::hal::avbuffer::Pool audioPool;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
     int32_t size = 1024;
-    UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return)", mVideoPool.handle, size);
-    Status status = gAVBufferManager->alloc(mVideoPool, size, &videobufferHandle);
-    UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return:[0x%X]), status:[isOK:%s, exception:%s]", mVideoPool.handle, size, videobufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_NOT_EQUAL(videobufferHandle, IAVBuffer::INVALID_HANDLE);
-
+    bool secureHeap = true;
+    int64_t videobufferHandle;
     int64_t audioBufferHandle;
-    UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return)", mAudioPool.handle, size);
-    status = gAVBufferManager->alloc(mAudioPool, size, &audioBufferHandle);
-    UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return:[0x%X]), status:[isOK:%s, exception:%s]", mAudioPool.handle, size, audioBufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_NOT_EQUAL(audioBufferHandle, IAVBuffer::INVALID_HANDLE);
 
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-//test case : 1 free() with video buffer handle
-    UT_LOG_INFO("Calling free with video buffer handle (IN:bufferHandle:[%lld], OUT:_aidl_return)", videobufferHandle);
-    status = gAVBufferManager->free(videobufferHandle, &_aidl_return);
-    UT_LOG_INFO("Result free(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                videobufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_TRUE(_aidl_return);
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
 
-//test case : 2 free() with audio buffer handle
-    UT_LOG_INFO("Calling free with audio buffer handle (IN:bufferHandle:[%lld], OUT:_aidl_return)", audioBufferHandle);
-    status = gAVBufferManager->free(audioBufferHandle, &_aidl_return);
-    UT_LOG_INFO("Result free(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                audioBufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_TRUE(_aidl_return);
+    // Test Case 1: Valid video Pool Handle and Size
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    // Test Case 2: Valid audio Pool Handle and Size
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
  * @brief Test the `free` API with an invalid buffer handle to ensure proper error handling.
  *
- * This test verifies the behavior of the `free` API when provided with an invalid buffer handle. The objective is to ensure that the API correctly handles error scenarios and returns appropriate status and output values.
+ * This test verifies the behavior of the `free` API when provided with an invalid buffer handle.
+ * The objective is to ensure that the API correctly handles error scenarios and returns
+ * appropriate status and output values.
  *
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 018@n
@@ -1197,21 +1207,44 @@ UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_positive_free) 
  * | 04 | Verify that the return value is `false` | aidlReturn = false | Should Fail | |
  * | 05 | Check the output parameter `status.isOk()` to ensure it reflects a failure | status.isOk() = false | Should Fail | |
  */
-UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_negative_free) {
+UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
+{
+    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    ::com::rdk::hal::avbuffer::Pool videoPool;
+    ::com::rdk::hal::avbuffer::Pool audioPool;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    int32_t size = 1024;
+    bool secureHeap = true;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
+    int64_t invalidBufferHandle = -1;
+
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
+
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+
     // Test Case 1: Invalid Buffer Handle
-    // An invalid integer value that does not correspond to any allocated memory buffer.
-    int64_t invalidBufferHandle =  -1;
-    bool aidlReturn = false;
+    AVBUFFER_FREE_FAILURE(gAVBufferManager, invalidBufferHandle, Status::EX_NONE);
 
-    UT_LOG_INFO("Calling free(IN:bufferHandle:[%lld], OUT:_aidl_return)", invalidBufferHandle);
-    ::android::binder::Status status = gAVBufferManager->free(invalidBufferHandle, &aidlReturn);
-    UT_LOG_INFO("Result free(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                invalidBufferHandle, UT_Control_GetMapString(bool_mapTable, aidlReturn),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
 
-    UT_ASSERT_FALSE(aidlReturn);
-    UT_ASSERT_FALSE(status.isOk());
+    // Test Case 2: Invalid Buffer Handle (already freed handle)
+    AVBUFFER_FREE_FAILURE(gAVBufferManager, videobufferHandle, Status::EX_NONE);
+    AVBUFFER_FREE_FAILURE(gAVBufferManager, audioBufferHandle, Status::EX_NONE);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
@@ -1237,67 +1270,64 @@ UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_negative_free) 
  * | 03 | Log the result of the isValid API call | bufferHandle = mBufferHandle, isValidResult = true | Should be successful | Should be successful |
  * | 04 | Verify the return value and output parameter | status.isOk() = true, isValidResult = true | Should be successful | Should Pass |
  */
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_positive_isValid) {
-    bool isValidResult = false;
-    // Log the call to the isValid API
-    UT_LOG_INFO("Calling isValid with video pool handle(IN:bufferHandle:[%lld], OUT:_aidl_return)", mVideoBufferHandle);
-    ::android::binder::Status status = gAVBufferManager->isValid(mVideoBufferHandle, &isValidResult);
-    UT_LOG_INFO("Result isValid(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                mVideoBufferHandle, UT_Control_GetMapString(bool_mapTable, isValidResult),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_TRUE(isValidResult);
-
-    UT_LOG_INFO("Calling isValid with audio pool handle(IN:bufferHandle:[%lld], OUT:_aidl_return)", mAudioBufferHandle);
-    status = gAVBufferManager->isValid(mAudioBufferHandle, &isValidResult);
-    UT_LOG_INFO("Result isValid(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                mAudioBufferHandle, UT_Control_GetMapString(bool_mapTable, isValidResult),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
-    UT_ASSERT_TRUE(isValidResult);
-}
-
-/**
-* @brief Test the behavior of the `isValid` API with an invalid buffer handle.
-*
-* This test verifies the behavior of the `isValid` API when it is provided with an invalid buffer handle. The purpose is to ensure that the API correctly identifies and handles invalid buffer handles by returning false.
-*
-* **Test Group ID:** Basic: 01@n
-* **Test Case ID:** 020@n
-* **Priority:** High@n
-* @n
-* **Pre-Conditions:** None@n
-* **Dependencies:** None@n
-* **User Interaction:** None@n
-* @n
-* **Test Procedure:**@n
-* | Variation / Step | Description | Test Data | Expected Result | Notes |
-* | :----: | --------- | ---------- |-------------- | ----- |
-* | 01 | Initialize the test by setting up any necessary pre-requisites. | None | None | Should be successful |
-* | 02 | Call the `isValid` API with an invalid buffer handle. | input: bufferHandle = 123456789, output: isValidResult = false | Return value: false, Assertion: UT_ASSERT_FALSE(isValidResult) | Should Pass |
-* | 03 | Verify the status of the API call to ensure it executed correctly. | status: isOk = true | Assertion: UT_ASSERT_TRUE(status.isOk()) | Should Pass |
-*/
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_negative_isValid) {
-
-    int64_t invalidBufferHandle = mAudioBufferHandle+1; // Random integer not obtained from alloc()
+UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
+{
+    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    ::com::rdk::hal::avbuffer::Pool videoPool;
+    ::com::rdk::hal::avbuffer::Pool audioPool;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    int32_t size = 1024;
+    bool secureHeap = true;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
+    int64_t invalidBufferHandle = -1;
     bool isValidResult = false;
 
-    UT_LOG_INFO("Calling isValid(IN:bufferHandle:[%lld], OUT:_aidl_return[])", invalidBufferHandle);
-    ::android::binder::Status status = gAVBufferManager->isValid(invalidBufferHandle, &isValidResult);
-    UT_LOG_INFO("Result isValid(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]",
-                invalidBufferHandle, UT_Control_GetMapString(bool_mapTable, isValidResult),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
+
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+
+    //Test 1: Test with valid buffer handle
+    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
+    UT_ASSERT_TRUE(isValidResult);
+    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
+    UT_ASSERT_TRUE(isValidResult);
+
+    //Test 2: Test with invalid buffer handle
+    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, invalidBufferHandle, isValidResult);
     UT_ASSERT_FALSE(isValidResult);
-    UT_ASSERT_TRUE(status.isOk());
+    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle + 1, isValidResult);
+    UT_ASSERT_FALSE(isValidResult);
+
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+    //Test 3: Test with invalid buffer handle (already freed handle)
+    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
+    UT_ASSERT_FALSE(isValidResult);
+    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
+    UT_ASSERT_FALSE(isValidResult);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
  * @brief Test the positive scenario of retrieving allocation list from AVBuffer
  *
- * This test verifies the functionality of the getAllocList API by ensuring that it successfully retrieves a list of allocation handles when provided with a valid pool handle. The test checks that the returned list is not empty and that all handles are positive, indicating valid allocations.
+ * This test verifies the functionality of the getAllocList API by ensuring that
+ * it successfully retrieves a list of allocation handles when provided with a valid pool handle.
+ * The test checks that the returned list is not empty and that all handles are positive, indicating valid allocations.
  *
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 021@n
@@ -1318,30 +1348,44 @@ UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_negative_isVa
  * | 06 | Assert that the allocList is not empty | allocList.empty() = false | Assertion should pass | Should Pass |
  * | 07 | Iterate over allocList and assert each handle is greater than 0 | handle > 0 for each handle in allocList | All assertions should pass | Should Pass |
  */
-UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_positive_getAllocList) {
-    // Setup
-    ::com::rdk::hal::avbuffer::Pool poolHandle;
-
-    poolHandle = mVideoPool; // Assume a valid handle is set here
+UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
+{
+    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    ::com::rdk::hal::avbuffer::Pool videoPool;
+    ::com::rdk::hal::avbuffer::Pool audioPool;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    int32_t size = 1024;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
     std::vector<int64_t> allocList;
-    UT_LOG_INFO("Calling getAllocList with video pool handle (IN:poolHandle:[%d], OUT:allocList[])", poolHandle.handle);
-    ::android::binder::Status status = gAVBufferManager->getAllocList(poolHandle, &allocList);
-    UT_LOG_INFO("Result getAllocList(IN:poolHandle:[%d], OUT:allocList[size:%zu]), status:[isOK:%s, exception:%s]",
-                poolHandle.handle, allocList.size(),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
 
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
-    poolHandle = mAudioPool; // Assume a valid handle is set here
-    std::vector<int64_t> audioallocList;
-    UT_LOG_INFO("Calling getAllocList with audio pool handle (IN:poolHandle:[%d], OUT:allocList[])", poolHandle.handle);
-    status = gAVBufferManager->getAllocList(poolHandle, &audioallocList);
-    UT_LOG_INFO("Result getAllocList(IN:poolHandle:[%d], OUT:allocList[size:%zu]), status:[isOK:%s, exception:%s]",
-                poolHandle.handle, audioallocList.size(),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_TRUE(status.isOk());
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+
+    AVBUFFER_GETALLOCLIST_SUCCESS(gAVBufferManager, videoPool, allocList);
+    UT_ASSERT_TRUE(allocList.size() == 1);
+    UT_ASSERT_TRUE(allocList[0] == videobufferHandle);
+
+    AVBUFFER_GETALLOCLIST_SUCCESS(gAVBufferManager, audioPool, allocList);
+    UT_ASSERT_TRUE(allocList.size() == 1);
+    UT_ASSERT_TRUE(allocList[0] == audioBufferHandle);
+
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
@@ -1371,24 +1415,20 @@ UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_positive_getAll
  * | 07 | Verify that the exception code is EX_ILLEGAL_ARGUMENT | status.exceptionCode() = EX_ILLEGAL_ARGUMENT | Should be successful | |
  * | 08 | Verify that the allocation list is empty | allocList.empty() = true | Should be successful | |
  */
-UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_negative_getAllocList) {
+UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_neg)
+{
     ::com::rdk::hal::avbuffer::Pool invalidPool;
     invalidPool.handle = ::com::rdk::hal::avbuffer::Pool::INVALID;
     ::std::vector<int64_t> allocList;
-    UT_LOG_INFO("Calling getAllocList(IN:poolHandle:[%d], OUT:allocList[])", invalidPool.handle);
-    ::android::binder::Status status = gAVBufferManager->getAllocList(invalidPool, &allocList);
-    UT_LOG_INFO("Result getAllocList(IN:poolHandle:[%d], OUT:allocList[size:%zu]), status:[isOK:%s, exception:%s]",
-                invalidPool.handle, allocList.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-    UT_ASSERT_FALSE(status.isOk());
-    UT_ASSERT_EQUAL(status.exceptionCode(), ::android::binder::Status::EX_ILLEGAL_ARGUMENT);
-    UT_ASSERT_TRUE(allocList.empty());
+    AVBUFFER_GETALLOCLIST_FAILURE(gAVBufferManager, invalidPool, allocList, ::android::binder::Status::EX_ILLEGAL_ARGUMENT);
 }
 
 /**
  * @brief Test the positive scenario of calculating SHA-1 hash for a video buffer.
  *
- * This test verifies the functionality of the `calculateSHA1` method to ensure it correctly computes the SHA-1 hash for a given video buffer handle. The test checks both the successful computation and the handling of exceptions.
+ * This test verifies the functionality of the `calculateSHA1` method to ensure
+ * it correctly computes the SHA-1 hash for a given video buffer handle.
+ * The test checks both the successful computation and the handling of exceptions.
  *
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 023@n
@@ -1407,33 +1447,39 @@ UT_ADD_TEST(L1AVBuffer_PoolManagementTestSuite, test_l1_AVBuffer_negative_getAll
  * | 04 | Handle the exception scenario if the status is not OK. | status.exceptionCode = value | Exception code should be EX_UNSUPPORTED_OPERATION. | Should Fail |
  * | 05 | Clean up the test environment and finalize the test suite. | None | Environment should be cleaned up successfully. | Done by Pre-requisite TearDown function |
  */
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_positive_calculateSHA1) {
+UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, calculateSHA1_pos)
+{
+    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    ::com::rdk::hal::avbuffer::Pool videoPool;
+    ::com::rdk::hal::avbuffer::Pool audioPool;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
+    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    int32_t size = 1024;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
     std::vector<uint8_t> sha1Result;
-    UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[%lld], OUT:sha1Result[])", mVideoBufferHandle);
-    ::android::binder::Status status = gAVBufferManager->calculateSHA1(mVideoBufferHandle, &sha1Result);
-    UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[%lld], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]",
-                mVideoBufferHandle, sha1Result.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
 
-    if (status.isOk()) {
-        UT_ASSERT_TRUE(status.isOk());
-    } else {
-        UT_ASSERT_EQUAL(status.exceptionCode(), ::android::binder::Status::EX_UNSUPPORTED_OPERATION)
-            << "Unexpected exception code.";
-    }
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
-    UT_LOG_INFO("Calling calculateSHA1 with audio buffer handle (IN:bufferHandle:[%lld], OUT:sha1Result[])", mAudioBufferHandle);
-    status = gAVBufferManager->calculateSHA1(mAudioBufferHandle, &sha1Result);
-    UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[%lld], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]",
-                mAudioBufferHandle, sha1Result.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    if (status.isOk()) {
-        UT_ASSERT_TRUE(status.isOk());
-    } else {
-        UT_ASSERT_EQUAL(status.exceptionCode(), ::android::binder::Status::EX_UNSUPPORTED_OPERATION)
-            << "Unexpected exception code.";
-    }
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+
+    AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, videobufferHandle, sha1Result);
+    AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, audioBufferHandle, sha1Result);
+
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
@@ -1459,17 +1505,10 @@ UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_positive_calc
  * | 05 | Log the result | invalidBufferHandle = -1, sha1Result.size() = 0, status.isOk() = false, status.exceptionCode() = EX_ILLEGAL_ARGUMENT | N/A | Should be successful |
  * | 06 | Verify the status and output | status.exceptionCode() = EX_ILLEGAL_ARGUMENT, sha1Result.empty() = true | Assertion checks pass | Should be successful |
  */
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, test_l1_AVBuffer_negative_calculateSHA1) {
-    int64_t invalidBufferHandle = mVideoBufferHandle+1; // Example of an invalid handle
+UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, calculateSHA1_neg)
+{
+    int64_t invalidBufferHandle = mVideoBufferHandle + 1; // Example of an invalid handle
     std::vector<uint8_t> sha1Result;
 
-    UT_LOG_INFO("Calling calculateSHA1(IN:bufferHandle:[%lld], OUT:sha1Result[])", invalidBufferHandle);
-    ::android::binder::Status status = gAVBufferManager->calculateSHA1(invalidBufferHandle, &sha1Result);
-    UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[%lld], OUT:sha1Result[%zu]), status:[isOK:%s, exception:%s]",
-                invalidBufferHandle, sha1Result.size(),
-                UT_Control_GetMapString(bool_mapTable, status.isOk()),
-                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode()));
-
-    UT_ASSERT_EQUAL(status.exceptionCode(), ::android::binder::Status::EX_ILLEGAL_ARGUMENT);
-    UT_ASSERT_TRUE(sha1Result.empty());
+    AVBUFFER_CALCULATESHA_FAILURE(gAVBufferManager, invalidBufferHandle, sha1Result, ::android::binder::Status::EX_ILLEGAL_ARGUMENT);
 }
