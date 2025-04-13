@@ -78,6 +78,7 @@
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
 #define AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(avBufferManager, secureHeap, videoDecoderId, listener, videoPool) \
@@ -90,6 +91,7 @@ do { \
                  UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
     UT_ASSERT_TRUE(status.isOk()); \
     UT_ASSERT_NOT_EQUAL(videoPool.handle, Pool::INVALID); \
+    UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
 } while (0)
 
 #define AVBUFFER_CREATE_VIDEOPOOL_FAILURE(avBufferManager, secureHeap, videoDecoderId, listener, videoPool, exception) \
@@ -115,6 +117,7 @@ do { \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_NOT_EQUAL(audioPool.handle, Pool::INVALID); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
 #define AVBUFFER_CREATE_AUDIOPOOL_FAILURE(avBufferManager, secureHeap, audioDecoderId, listener, audioPool, exception) \
@@ -142,6 +145,7 @@ do { \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_TRUE(_aidl_return); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
 #define AVBUFFER_DESTROY_POOL_FAILURE(avBufferManager, pool, exception) \
@@ -158,6 +162,120 @@ do { \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
     } while (0)
+
+#define AVBUFFER_GETPOOL_METRICS_SUCCESS(avBufferManager, pool, poolMetrics) \
+    do { \
+        UT_LOG_INFO("Calling getPoolMetrics(IN:poolHandle:[%d], OUT:PoolMetrics[])", pool.handle); \
+        Status status = avBufferManager->getPoolMetrics(pool, &poolMetrics); \
+        UT_LOG_INFO("Result getPoolMetrics(IN:poolHandle:[%d], OUT:PoolMetrics[bytesUsed:%d, bytesTotal:%d]), status:[isOK:%s, exception:%s]", \
+                    pool.handle, poolMetrics.bytesUsed, poolMetrics.bytesTotal, \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define AVBUFFER_GETPOOL_METRICS_FAILURE(avBufferManager, pool, poolMetrics, exception) \
+    do { \
+        UT_LOG_INFO("Calling getPoolMetrics(IN:poolHandle:[%d], OUT:PoolMetrics[])", pool.handle); \
+        Status status = avBufferManager->getPoolMetrics(pool, &poolMetrics); \
+        UT_LOG_INFO("Result getPoolMetrics(IN:poolHandle:[%d], OUT:PoolMetrics[bytesUsed:%d, bytesTotal:%d]), status:[isOK:%s, exception:%s]", \
+                    pool.handle, poolMetrics.bytesUsed, poolMetrics.bytesTotal, \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+    } while (0)
+
+#define AVBUFFER_GETALLPOOL_METRICS_SUCCESS(avBufferManager, secureHeap, poolMetrics) \
+    do { \
+        UT_LOG_INFO("Calling getAllPoolMetrics(IN:secureHeap:[%s], OUT:poolMetrics[])", UT_Control_GetMapString(bool_mapTable, secureHeap)); \
+        ::android::binder::Status status = avBufferManager->getAllPoolMetrics(secureHeap, &poolMetrics); \
+        UT_LOG_INFO("Result getAllPoolMetrics(IN:secureHeap:[false], OUT:poolMetrics[%zu]), status:[isOK:%s, exception:%s]", \
+                     poolMetrics.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define AVBUFFER_ALLOC_SUCCESS(avBufferManager, pool, size, bufferHandle) \
+    do { \
+        UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
+        Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
+        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%X]), status:[isOK:%s, exception:%s]", \
+                    pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_NOT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
+
+#define AVBUFFER_ALLOC_FAILURE(avBufferManager, pool, size, bufferHandle, exception) \
+    do { \
+        UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
+        Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
+        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%X]), status:[isOK:%s, exception:%s]", \
+                    pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+    } while (0)
+
+#define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
+    do { \
+        bool _aidl_return = false; \
+        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%X], OUT:_aidl_return)", bufferHandle); \
+        Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
+        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+        UT_ASSERT_TRUE(_aidl_return); \
+    } while (0)
+
+#define AVBUFFER_FREE_FAILURE(avBufferManager, bufferHandle, exception) \
+    do { \
+        bool _aidl_return = false; \
+        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%X], OUT:_aidl_return)", bufferHandle); \
+        Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
+        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        UT_ASSERT_FALSE(_aidl_return); \
+    } while (0)
+
+#define AVBUFFER_NOTIFYSPACE_SUCCESS(avBufferManager, pool, size) \
+    do { \
+        bool _aidl_return = false; \
+        UT_LOG_INFO("Calling notifyWhenSpaceAvailable(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return)", pool.handle, size); \
+        Status status = avBufferManager->notifyWhenSpaceAvailable(pool, size, &_aidl_return); \
+        UT_LOG_INFO("Result notifyWhenSpaceAvailable(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    pool.handle, size, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+        UT_ASSERT_TRUE(_aidl_return); \
+    } while (0)
+
+#define AVBUFFER_NOTIFYSPACE_FAILURE(avBufferManager, pool, size, exception) \
+    do { \
+        bool _aidl_return = false; \
+        UT_LOG_INFO("Calling notifyWhenSpaceAvailable(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return)", pool.handle, size); \
+        Status status = avBufferManager->notifyWhenSpaceAvailable(pool, size, &_aidl_return); \
+        UT_LOG_INFO("Result notifyWhenSpaceAvailable(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                    pool.handle, size, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_FALSE(status.isOk()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        UT_ASSERT_FALSE(_aidl_return); \
+    } while (0)
+
 #endif //__VTS_AVBUFFER_H__
 
 /** @} */ // End of AV_BUFFER_HALTEST_HEADER

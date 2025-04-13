@@ -71,6 +71,7 @@
 #include <utils/String16.h>
 #include "com/rdk/hal/avbuffer/IAVBuffer.h"
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
+#include "vts_avbuffer_parse_hfp.h"
 
 using android::sp;
 using android::String16;
@@ -88,6 +89,11 @@ sp<IAVBuffer> gAVBufferManager;
 UT_status_t VTS_AVBuffer_init()
 {
     if(vts_avbuffer_getService() != UT_STATUS_OK)
+    {
+        return UT_STATUS_FAILURE;
+    }
+
+    if(vts_avbuffer_parseAudioDecoderHFP() != UT_STATUS_OK)
     {
         return UT_STATUS_FAILURE;
     }
