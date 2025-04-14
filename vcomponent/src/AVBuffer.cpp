@@ -25,6 +25,12 @@
 
 #include "AVBuffer.h"
 
+using namespace com::rdk::hal;
+using namespace com::rdk::hal::avbuffer;
+using namespace com::rdk::hal::videodecoder;
+using namespace com::rdk::hal::audiodecoder;
+using namespace ::android::binder;
+
 namespace com {
     namespace rdk {
         namespace hal {
@@ -32,22 +38,33 @@ namespace com {
 
                 std::atomic<uint8_t> AVBuffer::poolHandleCounter(1);
                 std::atomic<int64_t> AVBuffer::bufferHandleCounter(1);
+                int32_t g_supported_audiodecoder_id[NUM_AUDIO_DECODER];
+                int32_t g_supported_videodecoder_id[NUM_VIDEO_DECODER];
 
-
-                AVBuffer::AVBuffer() {
+                AVBuffer::AVBuffer()
+                {
                     secureHeapSize = SECURE_HEAP_SIZE;
                     nonSecureHeapSize = NON_SECURE_HEAP_SIZE;
                     totalSecureBytesUsed = 0;
                     totalNonSecureBytesUsed = 0;
 
+                    for (int32_t i = 0;i<NUM_AUDIO_DECODER;i++)
+                    {
+                        g_supported_audiodecoder_id[i] = i;
+                    }
+                    for (int32_t i = 0;i<NUM_VIDEO_DECODER;i++)
+                    {
+                        g_supported_videodecoder_id[i] = i;
+                    }
                     printf("[SERVICE]AVBuffer service initialized\n");
                 }
 
-                AVBuffer::~AVBuffer() {
+                AVBuffer::~AVBuffer()
+                {
                     printf("[SERVICE]AVBuffer service destroyed\n");
                 }
 
-                ::android::binder::Status AVBuffer::getHeapMetrics(bool secureHeap, ::com::rdk::hal::avbuffer::HeapMetrics* _aidl_return)
+                Status AVBuffer::getHeapMetrics(bool secureHeap, HeapMetrics* _aidl_return)
                 {
                     _aidl_return->secure = secureHeap;
 
@@ -61,25 +78,38 @@ namespace com {
                         _aidl_return->bytesUsed = this->totalNonSecureBytesUsed;
                         _aidl_return->bytesTotal = this->nonSecureHeapSize;
                     }
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::createVideoPool(bool secureHeap, const ::com::rdk::hal::videodecoder::IVideoDecoder::Id& videoDecoderId, const ::android::sp<::com::rdk::hal::avbuffer::IAVBufferSpaceListener>& listener, ::com::rdk::hal::avbuffer::Pool* _aidl_return)
+                Status AVBuffer::createVideoPool(bool secureHeap, const IVideoDecoder::Id& videoDecoderId, const ::android::sp<IAVBufferSpaceListener>& listener, Pool* _aidl_return)
                 {
                     std::lock_guard<std::mutex> lock(poolMutex);
+                    int32_t found = 0;
+                    _aidl_return->handle = Pool::INVALID;
+
                     // Check if decoder ID is invalid
-                    if ((videoDecoderId.value == ::com::rdk::hal::videodecoder::IVideoDecoder::Id::UNDEFINED) || (videoDecoderId.value < 0))
+                    if (videoDecoderId.value == IVideoDecoder::Id::UNDEFINED)
                     {
-                        std::cout << "[SERVICE]ILLEGAL ARGUMENT " << videoDecoderId.value << std::endl;
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
+                    }
+                    for(int32_t i = 0; i < NUM_VIDEO_DECODER; i++)
+                    {
+                        if(g_supported_videodecoder_id[i] == videoDecoderId.value)
+                        {
+                            found = 1;
+                            break;
+                        }
+                    }
+                    if(!found)
+                    {
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
                     // Check for available memory and create pool
                     if (secureHeap)
                     {
                         if ((this->secureHeapSize - this->totalSecureBytesUsed) < VIDEO_POOL_SIZE)
                         {
-                            std::cout << "Out of secure heap memory!" << std::endl;
-                            return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                            return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
                         }
                         this->totalSecureBytesUsed += VIDEO_POOL_SIZE;
                     }
@@ -87,8 +117,7 @@ namespace com {
                     {
                         if ((this->nonSecureHeapSize - this->totalNonSecureBytesUsed) < VIDEO_POOL_SIZE)
                         {
-                            std::cout << "[SERVICE]Out of non-secure heap memory!" << std::endl;
-                            return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                            return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
                         }
                         this->totalNonSecureBytesUsed += VIDEO_POOL_SIZE;
                     }
@@ -114,25 +143,37 @@ namespace com {
                               << " video pool with handle: " << static_cast<int>(handle) << std::endl;
 
                     this->spaceListener = listener;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::createAudioPool(bool secureHeap, const ::com::rdk::hal::audiodecoder::IAudioDecoder::IAudioDecoder::Id &audioDecoderId, const ::android::sp<IAVBufferSpaceListener> &listener, Pool *_aidl_return)
+                Status AVBuffer::createAudioPool(bool secureHeap, const IAudioDecoder::IAudioDecoder::Id &audioDecoderId, const ::android::sp<IAVBufferSpaceListener> &listener, Pool *_aidl_return)
                 {
                     std::lock_guard<std::mutex> lock(poolMutex);
-                    // Check if decoder ID is invalid
-                    if ((audioDecoderId.value == ::com::rdk::hal::audiodecoder::IAudioDecoder::Id::UNDEFINED) || (audioDecoderId.value < 0))
+                    int32_t found = 0;
+                    _aidl_return->handle = Pool::INVALID;
+
+                    if (audioDecoderId.value != IAudioDecoder::Id::UNDEFINED)
                     {
-                        std::cout << "[SERVICE]ILLEGAL ARGUMENT " << audioDecoderId.value << std::endl;
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                        for(int32_t i = 0; i < NUM_AUDIO_DECODER; i++)
+                        {
+                            if(g_supported_audiodecoder_id[i] == audioDecoderId.value)
+                            {
+                                found = 1;
+                                break;
+                            }
+                        }
+                        if(!found)
+                        {
+                            return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
+                        }
                     }
+
                     // Check for available memory and create pool
                     if (secureHeap)
                     {
                         if ((this->secureHeapSize - this->totalSecureBytesUsed) < AUDIO_POOL_SIZE)
                         {
-                            std::cout << "[SERVICE]Out of secure heap memory!" << std::endl;
-                            return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                            return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
                         }
                         this->totalSecureBytesUsed += AUDIO_POOL_SIZE;
                     }
@@ -140,8 +181,7 @@ namespace com {
                     {
                         if ((this->nonSecureHeapSize - this->totalNonSecureBytesUsed) < AUDIO_POOL_SIZE)
                         {
-                            std::cout << "[SERVICE]Out of non-secure heap memory!" << std::endl;
-                            return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                            return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
                         }
                         this->totalNonSecureBytesUsed += AUDIO_POOL_SIZE;
                     }
@@ -167,28 +207,34 @@ namespace com {
                               << " audio pool with handle: " << static_cast<int>(handle) << std::endl;
 
                     this->spaceListener = listener;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::destroyPool(const ::com::rdk::hal::avbuffer::Pool& poolHandle, bool* _aidl_return)
+                Status AVBuffer::destroyPool(const Pool& poolHandle, bool* _aidl_return)
                 {
-                    auto it = poolMetricsMap.find(poolHandle.handle);
-                    if (it == poolMetricsMap.end()) {
-                        std::cout << "[SERVICE] Invalid pool handle" << std::endl;
+                    if (poolHandle.handle == Pool::INVALID)
+                    {
                         *_aidl_return = false;
-                        return ::android::binder::Status::ok();
+                        return Status::ok();
+                    }
+                    auto it = poolMetricsMap.find(poolHandle.handle);
+                    if (it == poolMetricsMap.end())
+                    {
+                        *_aidl_return = false;
+                        return Status::ok();
                     }
 
                     const InternalPoolInfo& poolInfo = it->second;
 
                     // Check if the pool is empty
-                    if (poolInfo.metrics.bytesUsed > 0) {
-                        std::cout << "[SERVICE] Pool is not empty. bytesUsed = " << poolInfo.metrics.bytesUsed << std::endl;
+                    if (poolInfo.metrics.bytesUsed > 0)
+                    {
                         *_aidl_return = false;
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_SERVICE_SPECIFIC, "HALError::NOT_EMPTY");
+                        return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::NOT_EMPTY");
                     }
 
-                    if (poolInfo.isSecure) {
+                    if (poolInfo.isSecure)
+                    {
                         this->totalSecureBytesUsed -= poolInfo.metrics.bytesTotal;
                     } else {
                         this->totalNonSecureBytesUsed -= poolInfo.metrics.bytesTotal;
@@ -197,28 +243,28 @@ namespace com {
                     // Erase pool info from map
                     poolMetricsMap.erase(it);
                     *_aidl_return = true;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::getPoolMetrics(const ::com::rdk::hal::avbuffer::Pool& poolHandle, ::com::rdk::hal::avbuffer::PoolMetrics* _aidl_return)
+                Status AVBuffer::getPoolMetrics(const Pool& poolHandle, PoolMetrics* _aidl_return)
                 {
-                    if (poolHandle.handle == ::com::rdk::hal::avbuffer::Pool::INVALID)
+                    if (poolHandle.handle == Pool::INVALID)
                     {
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
 
                     auto it = poolMetricsMap.find(poolHandle.handle);
-                    if (it == poolMetricsMap.end()) {
-                        std::cout << "[SERVICE] Invalid pool handle: " << static_cast<int>(poolHandle.handle) << std::endl;
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                    if (it == poolMetricsMap.end())
+                    {
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
 
                     const InternalPoolInfo& poolInfo = it->second;
                     *_aidl_return = poolInfo.metrics;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::getAllPoolMetrics(bool secureHeap, ::std::vector<::com::rdk::hal::avbuffer::PoolMetrics>* _aidl_return)
+                Status AVBuffer::getAllPoolMetrics(bool secureHeap, ::std::vector<PoolMetrics>* _aidl_return)
                 {
                     _aidl_return->clear();
                     for (const auto& [handle, info] : poolMetricsMap)
@@ -226,20 +272,17 @@ namespace com {
                         if (info.isSecure == secureHeap)
                         {
                             _aidl_return->push_back(info.metrics);
-                            std::cout << "[SERVICE]Included pool handle " << static_cast<int>(handle)
-                                      << " (used: " << info.metrics.bytesUsed
-                                      << ", total: " << info.metrics.bytesTotal << ")" << std::endl;
                         }
                     }
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::alloc(const ::com::rdk::hal::avbuffer::Pool& poolHandle, int32_t size, int64_t* _aidl_return)
+                Status AVBuffer::alloc(const Pool& poolHandle, int32_t size, int64_t* _aidl_return)
                 {
-                    if(size <= 0 || poolHandle.handle == ::com::rdk::hal::avbuffer::Pool::INVALID)
+                    if(size <= 0 || poolHandle.handle == Pool::INVALID)
                     {
-                        *_aidl_return = ::com::rdk::hal::avbuffer::Pool::INVALID;
-                        return ::android::binder::Status::ok();
+                        *_aidl_return = Pool::INVALID;
+                        return Status::ok();
                     }
 
                     std::lock_guard<std::mutex> lock(poolMutex);
@@ -248,16 +291,16 @@ namespace com {
                     // Check if pool exists
                     auto metricsIt = poolMetricsMap.find(handle);
                     if (metricsIt == poolMetricsMap.end()) {
-                        *_aidl_return = ::com::rdk::hal::avbuffer::Pool::INVALID;
-                        return ::android::binder::Status::ok();
+                        *_aidl_return = Pool::INVALID;
+                        return Status::ok();
                     }
 
                     PoolMetrics& metrics = metricsIt->second.metrics;
 
                     // Check if there's enough space
-                    if ((metrics.bytesTotal - metrics.bytesUsed) < size) {
-                        std::cout << "[SERVICE] not enough memory in the pool" << std::endl;
-                        return ::android::binder::Status::fromExceptionCode( ::android::binder::Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                    if ((metrics.bytesTotal - metrics.bytesUsed) < size)
+                    {
+                        return Status::fromExceptionCode( Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
                     }
                     // Allocate buffer handle
                     int64_t bufferHandle = bufferHandleCounter.fetch_add(1);
@@ -273,73 +316,80 @@ namespace com {
                     }
                     metrics.bytesUsed += size;
                     *_aidl_return = bufferHandle;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::notifyWhenSpaceAvailable(const ::com::rdk::hal::avbuffer::Pool& poolHandle, int32_t size, bool* _aidl_return)
+                Status AVBuffer::notifyWhenSpaceAvailable(const Pool& poolHandle, int32_t size, bool* _aidl_return)
                 {
                     if (size <= 0 || size > POOL_SIZE)
                     {
                         *_aidl_return = false;
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
 
                     auto it = poolMetricsMap.find(poolHandle.handle);
                     if (it == poolMetricsMap.end())
                     {
                         *_aidl_return = false;
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
 
-                    printf("[SERVICE] notifyWhenSpaceAvailable called with poolHandle=%d, size=%d\n",poolHandle.handle, size);
                     const auto& poolInfo = it->second;
                     long availableSpace = poolInfo.metrics.bytesTotal - poolInfo.metrics.bytesUsed;
 
                     if (availableSpace >= size)
                     {
-                        if (spaceListener != nullptr) {
+                        if (spaceListener != nullptr)
+                        {
                             this->spaceListener->onSpaceAvailable();
                         }
-                    } else {
+                    }
+                    else
+                    {
                         //TBD
                         std::thread([this]() {
                             std::this_thread::sleep_for(std::chrono::milliseconds(200));  // simulate delay
-                            if (spaceListener != nullptr) {
+                            if (spaceListener != nullptr)
+                            {
                                 this->spaceListener->onSpaceAvailable();
                             }
                         }).detach();
                     }
 
                     *_aidl_return = true;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::trimSize(int64_t bufferHandle, int32_t newSize, bool* _aidl_return)
+                Status AVBuffer::trimSize(int64_t bufferHandle, int32_t newSize, bool* _aidl_return)
                 {
-                    if (newSize <= 0) {
+                    if (newSize <= 0)
+                    {
                         *_aidl_return = false;
-                        return ::android::binder::Status::ok();
+                        return Status::ok();
                     }
 
                     std::lock_guard<std::mutex> lock(bufferLock);
 
                     auto it = bufferMap.find(bufferHandle);
-                    if (it == bufferMap.end() || !it->second.valid) {
+                    if (it == bufferMap.end() || !it->second.valid)
+                    {
                         *_aidl_return = false;
-                        return ::android::binder::Status::ok();
+                        return Status::ok();
                     }
 
                     BufferInfo& info = it->second;
                     const uint8_t poolHandle = info.poolHandle.handle;
 
                     auto& allocList = poolAllocations[poolHandle];
-                    if (allocList.empty() || allocList.back() != bufferHandle) {
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_STATE);
+                    if (allocList.empty() || allocList.back() != bufferHandle)
+                    {
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_STATE);
                     }
 
-                    if (newSize > info.size) {
+                    if (newSize > info.size)
+                    {
                         *_aidl_return = false;
-                        return ::android::binder::Status::ok();
+                        return Status::ok();
                     }
                     {
                         std::lock_guard<std::mutex> poolLock(poolMutex);
@@ -351,16 +401,16 @@ namespace com {
 
                     info.size = newSize;
                     *_aidl_return = true;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::free(int64_t bufferHandle, bool* _aidl_return)
+                Status AVBuffer::free(int64_t bufferHandle, bool* _aidl_return)
                 {
                     std::lock_guard <std::mutex> lock(bufferLock);
                     auto it = bufferMap.find(bufferHandle);
                     if (it == bufferMap.end() || !it->second.valid) {
                         *_aidl_return = false;
-                        return ::android::binder::Status::ok();
+                        return Status::ok();
                     }
 
                     BufferInfo &info = it->second;
@@ -380,37 +430,37 @@ namespace com {
                     vec.erase(std::remove(vec.begin(), vec.end(), bufferHandle), vec.end());
 
                     *_aidl_return = true;
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::getAllocList(const Pool& poolHandle, std::vector<int64_t>* _aidl_return)
+                Status AVBuffer::getAllocList(const Pool& poolHandle, std::vector<int64_t>* _aidl_return)
                 {
                     std::lock_guard<std::mutex> lock(poolMutex);
                     if (poolMetricsMap.find(poolHandle.handle) == poolMetricsMap.end())
                     {
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
                     std::lock_guard<std::mutex> bufLock(bufferLock);
                     *_aidl_return = poolAllocations[poolHandle.handle];
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
 
-                ::android::binder::Status AVBuffer::calculateSHA1(int64_t bufferHandle, ::std::vector<uint8_t>* _aidl_return) {
+                Status AVBuffer::calculateSHA1(int64_t bufferHandle, ::std::vector<uint8_t>* _aidl_return) {
                     std::lock_guard<std::mutex> lock(bufferLock);
                     auto it = bufferMap.find(bufferHandle);
                     if (it == bufferMap.end() || !it->second.valid) {
-                        return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
                     // SHA-1 support is not implemented in this build.
-                    return ::android::binder::Status::fromExceptionCode(::android::binder::Status::EX_UNSUPPORTED_OPERATION);
+                    return Status::fromExceptionCode(Status::EX_UNSUPPORTED_OPERATION);
                 }
 
-                ::android::binder::Status AVBuffer::isValid(int64_t bufferHandle, bool* _aidl_return)
+                Status AVBuffer::isValid(int64_t bufferHandle, bool* _aidl_return)
                 {
                     std::lock_guard<std::mutex> lock(bufferLock);
                     auto it = bufferMap.find(bufferHandle);
                     *_aidl_return = (it != bufferMap.end() && it->second.valid);
-                    return ::android::binder::Status::ok();
+                    return Status::ok();
                 }
             }
         }

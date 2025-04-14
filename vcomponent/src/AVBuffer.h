@@ -48,6 +48,9 @@
 #include "com/rdk/hal/audiodecoder/IAudioDecoder.h"
 
 
+#define NUM_AUDIO_DECODER 2
+#define NUM_VIDEO_DECODER 2
+
 namespace com {
     namespace rdk {
         namespace hal {

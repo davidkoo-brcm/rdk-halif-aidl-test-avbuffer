@@ -93,7 +93,8 @@ UT_status_t vts_avbuffer_getService()
 }
 
 
-class AVBufferSpaceListener : public BnAVBufferSpaceListener {
+class AVBufferSpaceListener : public BnAVBufferSpaceListener
+{
 public:
 
     AVBufferSpaceListener() {};
@@ -101,7 +102,7 @@ public:
 
     Status onSpaceAvailable() override
     {
-        return ::android::binder::Status::ok();
+        return Status::ok();
     }
 };
 
@@ -116,119 +117,6 @@ protected:
     {
     }
 };
-
-
-class L1AVBuffer_PoolManagementTestSuite : public VTS_L1_AVBuffer {
-    protected:
-        ::com::rdk::hal::avbuffer::Pool mVideoPool;
-        ::com::rdk::hal::avbuffer::Pool mAudioPool;
-        bool secureheap = true;
-
-        void SetUp() override {
-
-            VTS_L1_AVBuffer::SetUp();
-            createVideoPool();
-            createAudioPool();
-        }
-
-        void TearDown() override {
-            destroyVideoPool();
-            destroyAudioPool();
-            VTS_L1_AVBuffer::TearDown();
-        }
-
-        void createVideoPool() {
-            std::string videoDecoderPath = "IVideoDecoderManager.IVideoDecoder";
-            printf("=======BHANU-1==========\n");
-            int32_t videoDecoderCount = UT_KVP_PROFILE_GET_LIST_COUNT(videoDecoderPath.c_str());
-            UT_ASSERT_TRUE(videoDecoderCount > 0) << "Video decoder profile returned invalid count.";
-
-            std::string videoDecoderIdPath = videoDecoderPath + ".0.";
-            int32_t _videoDecoderId = UT_KVP_PROFILE_GET_UINT32(videoDecoderIdPath.c_str());
-            printf("=======BHANU-2==========\n");
-            ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-            videoDecoderId.value = _videoDecoderId;
-
-            sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-            Status status = gAVBufferManager->createVideoPool(secureheap, videoDecoderId, listener, &mVideoPool);
-            UT_ASSERT_TRUE(status.isOk()) << "Failed to create video pool";
-            UT_ASSERT_NOT_EQUAL(mVideoPool.handle, Pool::INVALID);
-        }
-
-        void createAudioPool() {
-            printf("=======BHANU-3==========\n");
-            std::string audioDecoderPath = "IAudioDecoderManager.IAudioDecoder";
-            int32_t audioDecoderCount = UT_KVP_PROFILE_GET_LIST_COUNT(audioDecoderPath.c_str());
-            UT_ASSERT_TRUE(audioDecoderCount > 0) << "Audio decoder profile returned invalid count.";
-            printf("=======BHANU-4==========\n");
-            std::string audioDecoderIdPath = audioDecoderPath + ".0.";
-            int32_t _audioDecoderId = UT_KVP_PROFILE_GET_UINT32(audioDecoderIdPath.c_str());
-
-            ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-            audioDecoderId.value = _audioDecoderId;
-
-            sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-            Status status = gAVBufferManager->createAudioPool(secureheap, audioDecoderId, listener, &mAudioPool);
-            UT_ASSERT_TRUE(status.isOk()) << "Failed to create audio pool";
-            UT_ASSERT_NOT_EQUAL(mAudioPool.handle, Pool::INVALID);
-        }
-
-        void destroyVideoPool() {
-            if (mVideoPool.handle != ::com::rdk::hal::avbuffer::Pool::INVALID) {
-                Status status = gAVBufferManager->destroyPool(mVideoPool, &secureheap);
-                UT_ASSERT_TRUE(status.isOk());
-            }
-        }
-
-        void destroyAudioPool() {
-            if (mAudioPool.handle != ::com::rdk::hal::avbuffer::Pool::INVALID) {
-                Status status = gAVBufferManager->destroyPool(mAudioPool, &secureheap);
-                UT_ASSERT_TRUE(status.isOk());
-            }
-        }
-    };
-
-
-class L1AVBuffer_BufferManagementTestSuite : public L1AVBuffer_PoolManagementTestSuite {
-protected:
-    int64_t mVideoBufferHandle = IAVBuffer::INVALID_HANDLE;
-    int64_t mAudioBufferHandle = IAVBuffer::INVALID_HANDLE;
-
-    void SetUp() override {
-        // Call base class to create audio/video pools
-        L1AVBuffer_PoolManagementTestSuite::SetUp();
-
-        // Allocate buffer for video
-        Status status = gAVBufferManager->alloc(mVideoPool, 1024, &mVideoBufferHandle);
-        UT_ASSERT_TRUE(status.isOk()) << "Failed to allocate video buffer";
-        UT_ASSERT_NOT_EQUAL(mVideoBufferHandle, IAVBuffer::INVALID_HANDLE);
-
-        // Allocate buffer for audio
-        status = gAVBufferManager->alloc(mAudioPool, 1024, &mAudioBufferHandle);
-        UT_ASSERT_TRUE(status.isOk()) << "Failed to allocate audio buffer";
-        UT_ASSERT_NOT_EQUAL(mAudioBufferHandle, IAVBuffer::INVALID_HANDLE);
-    }
-
-    void TearDown() override {
-
-        bool secureHeap = true;
-
-        if (mVideoBufferHandle != IAVBuffer::INVALID_HANDLE) {
-            Status status = gAVBufferManager->free(mVideoBufferHandle, &secureHeap);
-            UT_ASSERT_TRUE(status.isOk());
-        }
-
-        if (mAudioBufferHandle != IAVBuffer::INVALID_HANDLE) {
-            Status status = gAVBufferManager->free(mAudioBufferHandle, &secureHeap);
-            UT_ASSERT_TRUE(status.isOk());
-        }
-
-        // Call base class to destroy audio/video pools
-        L1AVBuffer_PoolManagementTestSuite::TearDown();
-    }
-};
-
-
 
 /**
  * @brief Test for VTS_L1_AVBuffer to verify heap metrics retrieval for both secure and non-secure heaps.
@@ -257,9 +145,8 @@ protected:
 UT_ADD_TEST(VTS_L1_AVBuffer, getHeapMetrics_pos)
 {
     // Test for Non-Secure Heap Metrics Retrieval
-
     bool secureHeap = false;
-    ::com::rdk::hal::avbuffer::HeapMetrics heapMetrics;
+    HeapMetrics heapMetrics;
 
     AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
 
@@ -269,7 +156,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getHeapMetrics_pos)
     UT_ASSERT_EQUAL(heapMetrics.bytesTotal, gAVBuffer_hfp.nonSecureHeapBytes);
 
     // Test for Secure Heap Metrics Retrieval
-
     secureHeap = true;
 
     AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
@@ -308,19 +194,19 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
 {
     for (const auto& _videoDecoderId : gAVBuffer_hfp.videoDecoderId)
     {
-        ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+        IVideoDecoder::Id videoDecoderId;
         videoDecoderId.value = _videoDecoderId;
 
         // Create a valid listener
         sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-        // Test 1
+        // Test 1: Create Secure video pool
         bool secureHeap = true;
-        ::com::rdk::hal::avbuffer::Pool videoPool;
+        Pool videoPool;
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
 
-        // Test 2
+        // Test 2: Create non-secure video pool
         secureHeap = false;
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
@@ -350,10 +236,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
  * | 04 | Create a listener object for AVBufferSpaceListener. | listener = new AVBufferSpaceListener() | Should be successful | Should be successful |
  * | 05 | Call createVideoPool with invalidLowId and check the result. | secureHeap = value, videoDecoderId = invalidLowId, listener = listener, videoPool = &videoPool | Status exceptionCode = EX_ILLEGAL_ARGUMENT, videoPool.handle = Pool::INVALID | Should Fail |
  * | 06 | Call createVideoPool with invalidHighId and check the result. | secureHeap = value, videoDecoderId = invalidHighId, listener = listener, videoPool = &videoPool | Status exceptionCode = EX_ILLEGAL_ARGUMENT, videoPool.handle = Pool::INVALID | Should Fail |
+ * | 07 | Call createVideoPool with invalid listener and check the result. | secureHeap = value, videoDecoderId = validID, listener = nullptr, videoPool = &videoPool | Status exceptionCode = EX_ILLEGAL_ARGUMENT, videoPool.handle = Pool::INVALID | Should Fail |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
 {
-    bool secureHeap;
+    bool secureHeap = true;
 
     int32_t invalidLowId = gAVBuffer_hfp.videoDecoderId.front() - 1;
     int32_t invalidHighId = gAVBuffer_hfp.videoDecoderId.back() + 1;
@@ -361,22 +248,20 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
     // Create listener
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
+    Pool videoPool;
+    IVideoDecoder::Id videoDecoderId;
 
     // Test with invalidLowId
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
     videoDecoderId.value = invalidLowId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    secureHeap = true;
-
-    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, Status::EX_ILLEGAL_ARGUMENT);
 
     // Test with invalidHighId
     videoDecoderId.value = invalidHighId;
-    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, Status::EX_ILLEGAL_ARGUMENT);
 
     // Test with invalid listener
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
-    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener_nullptr, videoPool, android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener_nullptr, videoPool, Status::EX_ILLEGAL_ARGUMENT);
 }
 
 /**
@@ -407,9 +292,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
 UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
 {
     // Retrieve the number of audio decoders from the YAML configuration
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    IAudioDecoder::Id audioDecoderId;
     bool secureHeap;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
+    Pool audioPool;
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
@@ -430,7 +315,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
     }
 
     // Test Case 3: Audio Pool Creation with UNDEFINED Audio Decoder ID
-    audioDecoderId.value = ::com::rdk::hal::audiodecoder::IAudioDecoder::Id::UNDEFINED;
+    audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     secureHeap = false;
 
     AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
@@ -465,25 +350,33 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
 UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
 {
     bool secureHeap = true;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    IAudioDecoder::Id audioDecoderId;
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-    ::com::rdk::hal::avbuffer::Pool audioPool;
+    sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
+    Pool audioPool;
 
     int32_t leastValue = gAVBuffer_hfp.audioDecoderId.front();
     int32_t highestValue = gAVBuffer_hfp.audioDecoderId.back();
 
     // Test with least value - 1
     audioDecoderId.value = leastValue - 1;
-    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    if(audioDecoderId.value == IAudioDecoder::Id::UNDEFINED)
+    {
+        audioDecoderId.value--;
+    }
+    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_ILLEGAL_ARGUMENT);
 
     // Test with highest value + 1
     audioDecoderId.value = highestValue + 1;
-    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    if(audioDecoderId.value == IAudioDecoder::Id::UNDEFINED)
+    {
+        audioDecoderId.value++;
+    }
+    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_ILLEGAL_ARGUMENT);
 
     //Null Listener for Audio Pool Creation
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front(); // Use a valid ID
-    listener = nullptr;
-    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener_nullptr, audioPool, Status::EX_ILLEGAL_ARGUMENT);
 }
 
 /**
@@ -505,16 +398,16 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
  * | 01 | Log the intention to call destroyPool with the pool handle | poolHandle = mVideoPool.handle | Log should be successful | Should be successful |
- * | 02 | Call the destroyPool function with the video pool handle and capture the return status and result | poolHandle = mVideoPool.handle, _aidl_return = false | status.isOk() = true, _aidl_return = true | Should Pass |
- * | 03 | Log the result of the destroyPool call including the status and return value | poolHandle = mVideoPool.handle, _aidl_return = true, status.isOk() = true, status.exceptionCode() = none | Log should be successful | Should be successful |
+ * | 02 | Call the destroyPool function with the aduio pool handle and capture the return status and result | poolHandle = audioPool.handle, _aidl_return = false | status.isOk() = true, _aidl_return = true | Should Pass |
+ * | 03 | Call the destroyPool function with the video pool handle and capture the return status and result | poolHandle = videoPool.handle, _aidl_return = false | status.isOk() = true, _aidl_return = true | Should Pass |
  * | 04 | Assert that the status is OK | status.isOk() = true | Assertion should pass | Should Pass |
  * | 05 | Assert that the return value is true | _aidl_return = true | Assertion should pass | Should Pass |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_pos)
 {
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
+    IAudioDecoder::Id audioDecoderId;
     bool secureHeap;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
+    Pool audioPool;
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
@@ -523,40 +416,36 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_pos)
     {
         audioDecoderId.value = _audioDecoderId;
 
-        // Test Case 1
         secureHeap = true;
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 
-        // Test Case 2
         secureHeap = false;
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
     }
 
-    // Test Case 3: Audio Pool Creation with UNDEFINED Audio Decoder ID
-    audioDecoderId.value = ::com::rdk::hal::audiodecoder::IAudioDecoder::Id::UNDEFINED;
+    // Audio Pool Creation with UNDEFINED Audio Decoder ID
+    audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     secureHeap = false;
 
     AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
     AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 
-    // Test Case 2
+    // Iterate over all audio decoder IDs
     for (const auto& _videoDecoderId : gAVBuffer_hfp.videoDecoderId)
     {
-        ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
+        IVideoDecoder::Id videoDecoderId;
         videoDecoderId.value = _videoDecoderId;
 
         // Create a valid listener
         sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-        // Test 1
         bool secureHeap = true;
-        ::com::rdk::hal::avbuffer::Pool videoPool;
+        Pool videoPool;
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
 
-        // Test 2
         secureHeap = false;
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
@@ -587,16 +476,48 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_pos)
 UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_neg)
 {
     // Test Case 1: Invalid Pool Handle
-    ::com::rdk::hal::avbuffer::Pool invalidPool;
-    invalidPool.handle = ::com::rdk::hal::avbuffer::Pool::INVALID;
+    Pool invalidPool;
+    invalidPool.handle = Pool::INVALID;
 
-    AVBUFFER_DESTROY_POOL_FAILURE(gAVBufferManager, invalidPool, android::binder::Status::EX_NONE);
+    /* Test 1: Try to destroy invalid handle*/
+    AVBUFFER_DESTROY_POOL_FAILURE(gAVBufferManager, invalidPool, Status::EX_NONE);
+
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
+    int32_t size = 1024;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
+
+    videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
+
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+
+    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+
+    /* Test 2: Try to destroy valid handle but buffers are not freed */
+    AVBUFFER_DESTROY_POOL_FAILURE(gAVBufferManager, videoPool, Status::EX_SERVICE_SPECIFIC);
+    AVBUFFER_DESTROY_POOL_FAILURE(gAVBufferManager, audioPool, Status::EX_SERVICE_SPECIFIC);
+
+    // Teardown
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 }
 
 /**
  * @brief Test the functionality of getting pool metrics for both video and audio pools.
  *
- * This test verifies the creation of video and audio pools and checks the retrieval of pool metrics to ensure that the pools are correctly reporting their usage statistics.
+ * This test verifies the creation of video and audio pools and checks the retrieval of pool
+ * metrics to ensure that the pools are correctly reporting their usage statistics.
  *
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 008@n
@@ -620,12 +541,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_neg)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, getPoolMetrics_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    ::com::rdk::hal::avbuffer::PoolMetrics videoPoolMetrics;
-    ::com::rdk::hal::avbuffer::PoolMetrics audioPoolMetrics;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
+    PoolMetrics videoPoolMetrics;
+    PoolMetrics audioPoolMetrics;
 
     bool secureHeap = true;
 
@@ -642,7 +563,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getPoolMetrics_pos)
 
     AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
     // Test getPoolMetrics for Audio Pool
-    AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, videoPoolMetrics);
+    AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
     UT_ASSERT_GREATER(audioPoolMetrics.bytesTotal, 0);
     UT_ASSERT_GREATER_EQUAL(audioPoolMetrics.bytesUsed, 0);
 
@@ -676,11 +597,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getPoolMetrics_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, getPoolMetrics_neg)
 {
-    ::com::rdk::hal::avbuffer::Pool invalidPool;
-    invalidPool.handle = ::com::rdk::hal::avbuffer::Pool::INVALID;
-    ::com::rdk::hal::avbuffer::PoolMetrics poolMetrics;
+    Pool invalidPool;
+    invalidPool.handle = Pool::INVALID;
+    PoolMetrics poolMetrics;
 
-    AVBUFFER_GETPOOL_METRICS_FAILURE(gAVBufferManager, invalidPool, poolMetrics, ::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_GETPOOL_METRICS_FAILURE(gAVBufferManager, invalidPool, poolMetrics, Status::EX_ILLEGAL_ARGUMENT);
 }
 
 /**
@@ -710,12 +631,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getPoolMetrics_neg)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
+    std::vector<PoolMetrics> poolMetricsNonSecure;
+    std::vector<PoolMetrics> poolMetricsSecure;
 
     bool secureHeap = true;
 
@@ -777,14 +698,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
-    bool secureHeap = true;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
 
@@ -812,7 +730,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
 /**
  * @brief Test the allocation of AVBuffer with various invalid scenarios
  *
- * This test checks the behavior of the AVBuffer allocation function when provided with invalid inputs such as an invalid pool handle, size greater than pool capacity, and zero size allocation. These scenarios are tested to ensure the robustness and error handling capabilities of the AVBuffer allocation function.
+ * This test checks the behavior of the AVBuffer allocation function when provided with invalid inputs
+ * such as an invalid pool handle, size greater than pool capacity, and zero size allocation.
+ * These scenarios are tested to ensure the robustness and error handling capabilities of the AVBuffer allocation function.
  *
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 012@n
@@ -827,23 +747,21 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
  * | :----: | --------- | ---------- |-------------- | ----- |
  * | 01 | Initialize invalid pool handle | invalidPool.handle = Pool::INVALID | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
  * | 02 | Call alloc with invalid pool handle | poolHandle = invalidPool.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes) | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
- * | 03 | Initialize valid video pool handle | validVideoPool.handle = mVideoPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
- * | 04 | Call alloc with size greater than pool capacity | poolHandle = validVideoPool.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes) + 1 | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
- * | 05 | Initialize valid audio pool handle | validAudioPool.handle = mAudioPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
- * | 06 | Call alloc with zero size | poolHandle = validAudioPool.handle, size = 0 | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
+ * | 03 | Initialize valid video pool handle | validVideoPool.handle = videoPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
+ * | 04 | Initialize valid audio pool handle | validaudioPool.handle = aideoPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
+ * | 05 | Call alloc with size greater than pool capacity | poolHandle = validVideoPool.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes) + 1 | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
+ * | 06 | Initialize valid audio pool handle | validAudioPool.handle = mAudioPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
+ * | 07 | Call alloc with zero size | poolHandle = validAudioPool.handle, size = 0 | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    ::com::rdk::hal::avbuffer::Pool invalidPool;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
+    Pool invalidPool;
     invalidPool.handle = Pool::INVALID;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
     int32_t size = 1024;
-    bool secureHeap = true;
     int64_t bufferHandle;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -858,8 +776,8 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
     AVBUFFER_ALLOC_FAILURE(gAVBufferManager, invalidPool, size, bufferHandle, Status::EX_NONE);
 
     // Test Case 2: Size Greater Than Pool Capacity
-    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, gAVBuffer_hfp.secureHeapBytes + 1, bufferHandle, Status::EX_NONE);
-    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, gAVBuffer_hfp.nonSecureHeapBytes + 1, bufferHandle, Status::EX_NONE);
+    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, gAVBuffer_hfp.secureHeapBytes + 1, bufferHandle, Status::EX_SERVICE_SPECIFIC);
+    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, gAVBuffer_hfp.nonSecureHeapBytes + 1, bufferHandle, Status::EX_SERVICE_SPECIFIC);
 
     // Test Case 3: Zero Size Allocation
     AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, 0, bufferHandle, Status::EX_NONE);
@@ -894,12 +812,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -944,14 +860,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    ::com::rdk::hal::avbuffer::Pool invalidPool;
-    invalidPool.handle = ::com::rdk::hal::avbuffer::Pool::INVALID;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
+    Pool invalidPool;
+    invalidPool.handle = Pool::INVALID;
     int32_t size = 1024;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -963,19 +877,19 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
     AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
 
     // Test Case 1: Invalid Pool Handle
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, invalidPool, size, Status::EX_NONE);
+    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, invalidPool, size, Status::EX_ILLEGAL_ARGUMENT);
 
     // Test Case 2: Size Exceeds Pool Capacity (video pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, gAVBuffer_hfp.nonSecureHeapBytes + 1, Status::EX_NONE);
+    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, gAVBuffer_hfp.nonSecureHeapBytes + 1, Status::EX_ILLEGAL_ARGUMENT);
 
     // Test Case 3: Zero Size (video pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, 0, Status::EX_NONE);
+    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, 0, Status::EX_ILLEGAL_ARGUMENT);
 
     // Test Case 4: Size Exceeds Pool Capacity (audio pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, gAVBuffer_hfp.secureHeapBytes + 1, Status::EX_NONE);
+    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, gAVBuffer_hfp.secureHeapBytes + 1, Status::EX_ILLEGAL_ARGUMENT);
 
     // Test Case 5: Zero Size (audio pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, 0, Status::EX_NONE);
+    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, 0, Status::EX_ILLEGAL_ARGUMENT);
 
     AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
     AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
@@ -1005,15 +919,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
-    int32_t new_size = 2048;
-    bool secureHeap = true;
+    int32_t new_size = size;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
 
@@ -1032,7 +943,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
     new_size = size - 128;
     AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
     AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
-    new_size = size;
+    new_size = size - 128;
     AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
     AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
 
@@ -1074,15 +985,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
 */
 UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
     int32_t new_size = size;
-    bool secureHeap = true;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
 
@@ -1097,7 +1005,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
     AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
     AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    int64_t invalidBufferHandle = videobufferHandle + 1; // Assuming this is not the last allocated
+    int64_t invalidBufferHandle = Pool::INVALID;
 
     // Negative Scenario - Invalid bufferHandle (not last allocated)
     AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, invalidBufferHandle, new_size, Status::EX_NONE);
@@ -1127,9 +1035,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
 }
 
 /**
- * @brief Test the positive scenario of freeing a video buffer.
+ * @brief Test the positive scenario of freeing a video and audio buffer.
  *
- * This test verifies the successful execution of the `free` API for video buffer management.
+ * This test verifies the successful execution of the `free` API for video and audio buffer management.
  * It ensures that the buffer is correctly freed and the return values are as expected.
  *
  * **Test Group ID:** Basic: 01@n
@@ -1151,14 +1059,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
-    bool secureHeap = true;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
 
@@ -1209,14 +1114,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
-    bool secureHeap = true;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
     int64_t invalidBufferHandle = -1;
@@ -1272,14 +1174,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
-    bool secureHeap = true;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
     int64_t invalidBufferHandle = -1;
@@ -1350,12 +1249,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -1417,10 +1314,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_neg)
 {
-    ::com::rdk::hal::avbuffer::Pool invalidPool;
-    invalidPool.handle = ::com::rdk::hal::avbuffer::Pool::INVALID;
+    Pool invalidPool;
+    invalidPool.handle = Pool::INVALID;
     ::std::vector<int64_t> allocList;
-    AVBUFFER_GETALLOCLIST_FAILURE(gAVBufferManager, invalidPool, allocList, ::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_GETALLOCLIST_FAILURE(gAVBufferManager, invalidPool, allocList, Status::EX_ILLEGAL_ARGUMENT);
 }
 
 /**
@@ -1447,14 +1344,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_neg)
  * | 04 | Handle the exception scenario if the status is not OK. | status.exceptionCode = value | Exception code should be EX_UNSUPPORTED_OPERATION. | Should Fail |
  * | 05 | Clean up the test environment and finalize the test suite. | None | Environment should be cleaned up successfully. | Done by Pre-requisite TearDown function |
  */
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, calculateSHA1_pos)
+UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_pos)
 {
-    ::com::rdk::hal::videodecoder::IVideoDecoder::Id videoDecoderId;
-    ::com::rdk::hal::audiodecoder::IAudioDecoder::Id audioDecoderId;
-    ::com::rdk::hal::avbuffer::Pool videoPool;
-    ::com::rdk::hal::avbuffer::Pool audioPool;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsNonSecure;
-    std::vector<::com::rdk::hal::avbuffer::PoolMetrics> poolMetricsSecure;
+    IVideoDecoder::Id videoDecoderId;
+    IAudioDecoder::Id audioDecoderId;
+    Pool videoPool;
+    Pool audioPool;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -1485,7 +1380,8 @@ UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, calculateSHA1_pos)
 /**
  * @brief Test the negative scenario for calculating SHA1 with an invalid buffer handle.
  *
- * This test verifies the behavior of the calculateSHA1 function when provided with an invalid buffer handle. The test ensures that the function correctly handles the error and returns the expected exception code and empty result.
+ * This test verifies the behavior of the calculateSHA1 function when provided with an invalid buffer handle.
+ * The test ensures that the function correctly handles the error and returns the expected exception code and empty result.
  *
  * **Test Group ID:** Basic: 01@n
  * **Test Case ID:** 024@n
@@ -1505,10 +1401,10 @@ UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, calculateSHA1_pos)
  * | 05 | Log the result | invalidBufferHandle = -1, sha1Result.size() = 0, status.isOk() = false, status.exceptionCode() = EX_ILLEGAL_ARGUMENT | N/A | Should be successful |
  * | 06 | Verify the status and output | status.exceptionCode() = EX_ILLEGAL_ARGUMENT, sha1Result.empty() = true | Assertion checks pass | Should be successful |
  */
-UT_ADD_TEST(L1AVBuffer_BufferManagementTestSuite, calculateSHA1_neg)
+UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_neg)
 {
-    int64_t invalidBufferHandle = mVideoBufferHandle + 1; // Example of an invalid handle
+    int64_t invalidBufferHandle = -1; // Example of an invalid handle
     std::vector<uint8_t> sha1Result;
 
-    AVBUFFER_CALCULATESHA_FAILURE(gAVBufferManager, invalidBufferHandle, sha1Result, ::android::binder::Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_CALCULATESHA_FAILURE(gAVBufferManager, invalidBufferHandle, sha1Result, Status::EX_ILLEGAL_ARGUMENT);
 }
