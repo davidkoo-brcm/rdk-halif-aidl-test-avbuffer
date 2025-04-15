@@ -106,6 +106,8 @@ UT_status_t vts_avbuffer_parseAudioDecoderHFP()
     gAVBuffer_hfp.nonSecureHeapBytes = UT_KVP_PROFILE_GET_UINT32(AVBUFFER_NONSECURESIZE_PATH);
     gAVBuffer_hfp.secureHeapBytes = UT_KVP_PROFILE_GET_UINT32(AVBUFFER_SECURESIZE_PATH);
 
+    gAVBuffer_hfp.supportSecure = gAVBuffer_hfp.secureHeapBytes > 0;
+
     return UT_STATUS_OK;
 }
 

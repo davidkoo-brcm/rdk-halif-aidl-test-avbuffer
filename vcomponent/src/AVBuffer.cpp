@@ -236,7 +236,9 @@ namespace com {
                     if (poolInfo.isSecure)
                     {
                         this->totalSecureBytesUsed -= poolInfo.metrics.bytesTotal;
-                    } else {
+                    }
+                    else
+                    {
                         this->totalNonSecureBytesUsed -= poolInfo.metrics.bytesTotal;
                     }
 
@@ -279,9 +281,10 @@ namespace com {
 
                 Status AVBuffer::alloc(const Pool& poolHandle, int32_t size, int64_t* _aidl_return)
                 {
+                    *_aidl_return = Pool::INVALID;
+
                     if(size <= 0 || poolHandle.handle == Pool::INVALID)
                     {
-                        *_aidl_return = Pool::INVALID;
                         return Status::ok();
                     }
 
@@ -290,8 +293,8 @@ namespace com {
 
                     // Check if pool exists
                     auto metricsIt = poolMetricsMap.find(handle);
-                    if (metricsIt == poolMetricsMap.end()) {
-                        *_aidl_return = Pool::INVALID;
+                    if (metricsIt == poolMetricsMap.end())
+                    {
                         return Status::ok();
                     }
 
@@ -408,7 +411,8 @@ namespace com {
                 {
                     std::lock_guard <std::mutex> lock(bufferLock);
                     auto it = bufferMap.find(bufferHandle);
-                    if (it == bufferMap.end() || !it->second.valid) {
+                    if (it == bufferMap.end() || !it->second.valid)
+                    {
                         *_aidl_return = false;
                         return Status::ok();
                     }
@@ -418,7 +422,8 @@ namespace com {
                     {
                         std::lock_guard <std::mutex> poolLock(poolMutex);
                         auto poolIt = poolMetricsMap.find(poolHandle);
-                        if (poolIt != poolMetricsMap.end()) {
+                        if (poolIt != poolMetricsMap.end())
+                        {
                             poolIt->second.metrics.bytesUsed -= info.size;
                         }
                     }
@@ -445,10 +450,12 @@ namespace com {
                     return Status::ok();
                 }
 
-                Status AVBuffer::calculateSHA1(int64_t bufferHandle, ::std::vector<uint8_t>* _aidl_return) {
+                Status AVBuffer::calculateSHA1(int64_t bufferHandle, ::std::vector<uint8_t>* _aidl_return)
+                {
                     std::lock_guard<std::mutex> lock(bufferLock);
                     auto it = bufferMap.find(bufferHandle);
-                    if (it == bufferMap.end() || !it->second.valid) {
+                    if (it == bufferMap.end() || !it->second.valid)
+                    {
                         return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
                     // SHA-1 support is not implemented in this build.

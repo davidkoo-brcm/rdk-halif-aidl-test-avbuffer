@@ -192,6 +192,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getHeapMetrics_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
 {
+    bool secureHeap = true;
+    Pool videoPool;
+
     for (const auto& _videoDecoderId : gAVBuffer_hfp.videoDecoderId)
     {
         IVideoDecoder::Id videoDecoderId;
@@ -201,10 +204,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
         sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
         // Test 1: Create Secure video pool
-        bool secureHeap = true;
-        Pool videoPool;
-        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        if (gAVBuffer_hfp.supportSecure)
+        {
+            AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        }
 
         // Test 2: Create non-secure video pool
         secureHeap = false;
@@ -240,15 +244,18 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
 {
-    bool secureHeap = true;
+    bool secureHeap = false;
 
     int32_t invalidLowId = gAVBuffer_hfp.videoDecoderId.front() - 1;
     int32_t invalidHighId = gAVBuffer_hfp.videoDecoderId.back() + 1;
+    HeapMetrics heapMetrics;
+    PoolMetrics videoPoolMetrics;
 
     // Create listener
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
     Pool videoPool;
+    ::std::vector<Pool> videoPools;
     IVideoDecoder::Id videoDecoderId;
 
     // Test with invalidLowId
@@ -262,6 +269,48 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
     // Test with invalid listener
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener_nullptr, videoPool, Status::EX_ILLEGAL_ARGUMENT);
+
+    // Test with secure flag if platform doesn't support secure
+    if(!gAVBuffer_hfp.supportSecure)
+    {
+        secureHeap = true;
+        videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+        AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, Status::EX_ILLEGAL_ARGUMENT);
+    }
+
+    // Test out of memory
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+
+        videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
+
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, videoPool, videoPoolMetrics);
+
+        videoPools.push_back(videoPool);
+
+        /* Exhaust the heap memory */
+        while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= videoPoolMetrics.bytesTotal)
+        {
+            AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+            videoPools.push_back(videoPool);
+            AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
+        }
+
+        /* Try to allocate the memory */
+        AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, Status::EX_SERVICE_SPECIFIC);
+
+        for (const auto& pool : videoPools)
+        {
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, pool);
+        }
+    }
 }
 
 /**
@@ -304,9 +353,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
         audioDecoderId.value = _audioDecoderId;
 
         // Test Case 1
-        secureHeap = true;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        if (gAVBuffer_hfp.supportSecure)
+        {
+            secureHeap = true;
+            AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        }
 
         // Test Case 2
         secureHeap = false;
@@ -354,6 +406,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
     Pool audioPool;
+    ::std::vector<Pool> audioPools;
+    HeapMetrics heapMetrics;
+    PoolMetrics audioPoolMetrics;
 
     int32_t leastValue = gAVBuffer_hfp.audioDecoderId.front();
     int32_t highestValue = gAVBuffer_hfp.audioDecoderId.back();
@@ -377,6 +432,40 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
     //Null Listener for Audio Pool Creation
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front(); // Use a valid ID
     AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener_nullptr, audioPool, Status::EX_ILLEGAL_ARGUMENT);
+
+    // Test out of memory
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+
+        audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
+
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
+        AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
+
+        audioPools.push_back(audioPool);
+
+        /* Exhaust the heap memory */
+        while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= audioPoolMetrics.bytesTotal)
+        {
+            AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
+            audioPools.push_back(audioPool);
+            AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
+        }
+
+        /* Try to allocate the memory */
+        AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_SERVICE_SPECIFIC);
+
+        for (const auto& pool : audioPools)
+        {
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, pool);
+        }
+    }
 }
 
 /**
@@ -406,8 +495,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
 UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_pos)
 {
     IAudioDecoder::Id audioDecoderId;
+    IVideoDecoder::Id videoDecoderId;
+
     bool secureHeap;
     Pool audioPool;
+    Pool videoPool;
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
@@ -416,9 +508,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_pos)
     {
         audioDecoderId.value = _audioDecoderId;
 
-        secureHeap = true;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        if (gAVBuffer_hfp.supportSecure)
+        {
+            secureHeap = true;
+            AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        }
 
         secureHeap = false;
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
@@ -432,19 +527,17 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_pos)
     AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
     AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 
-    // Iterate over all audio decoder IDs
+    // Iterate over all video decoder IDs
     for (const auto& _videoDecoderId : gAVBuffer_hfp.videoDecoderId)
     {
-        IVideoDecoder::Id videoDecoderId;
         videoDecoderId.value = _videoDecoderId;
 
-        // Create a valid listener
-        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-
-        bool secureHeap = true;
-        Pool videoPool;
-        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        if (gAVBuffer_hfp.supportSecure)
+        {
+            secureHeap = true;
+            AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        }
 
         secureHeap = false;
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
@@ -496,7 +589,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_neg)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
     AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, gAVBuffer_hfp.supportSecure, audioDecoderId, listener, audioPool);
 
     AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
     AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
@@ -548,27 +641,33 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getPoolMetrics_pos)
     PoolMetrics videoPoolMetrics;
     PoolMetrics audioPoolMetrics;
 
-    bool secureHeap = true;
-
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
-    // Test getPoolMetrics for Video Pool
-    AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, videoPool, videoPoolMetrics);
-    UT_ASSERT_GREATER(videoPoolMetrics.bytesTotal, 0);
-    UT_ASSERT_GREATER_EQUAL(videoPoolMetrics.bytesUsed, 0);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        // Test getPoolMetrics for Video Pool
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, videoPool, videoPoolMetrics);
+        UT_ASSERT_GREATER(videoPoolMetrics.bytesTotal, 0);
+        UT_ASSERT_GREATER_EQUAL(videoPoolMetrics.bytesUsed, 0);
 
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
-    // Test getPoolMetrics for Audio Pool
-    AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
-    UT_ASSERT_GREATER(audioPoolMetrics.bytesTotal, 0);
-    UT_ASSERT_GREATER_EQUAL(audioPoolMetrics.bytesUsed, 0);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
+        // Test getPoolMetrics for Audio Pool
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
+        UT_ASSERT_GREATER(audioPoolMetrics.bytesTotal, 0);
+        UT_ASSERT_GREATER_EQUAL(audioPoolMetrics.bytesUsed, 0);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -638,7 +737,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
     std::vector<PoolMetrics> poolMetricsNonSecure;
     std::vector<PoolMetrics> poolMetricsSecure;
 
-    bool secureHeap = true;
+    bool secureHeap = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -646,7 +745,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
     AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, gAVBuffer_hfp.supportSecure, audioDecoderId, listener, audioPool);
 
     AVBUFFER_GETALLPOOL_METRICS_SUCCESS(gAVBufferManager, secureHeap, poolMetricsNonSecure);
     for (const auto& metrics : poolMetricsNonSecure)
@@ -656,7 +755,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
         UT_ASSERT_GREATER_EQUAL(metrics.bytesTotal, metrics.bytesUsed);
     }
 
-    secureHeap = false;
+    secureHeap = true;
     AVBUFFER_GETALLPOOL_METRICS_SUCCESS(gAVBufferManager, secureHeap, poolMetricsSecure);
     for (const auto& metrics : poolMetricsSecure)
     {
@@ -711,20 +810,28 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    // Test Case 1: Valid video Pool Handle and Size
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    // Test Case 2: Valid audio Pool Handle and Size
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+        // Test Case 1: Valid video Pool Handle and Size
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        // Test Case 2: Valid audio Pool Handle and Size
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -761,29 +868,45 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
     Pool audioPool;
     Pool invalidPool;
     invalidPool.handle = Pool::INVALID;
+    PoolMetrics videoPoolMetrics;
+    PoolMetrics audioPoolMetrics;
     int32_t size = 1024;
-    int64_t bufferHandle;
+    int64_t videobufferHandle;
+    int64_t audioBufferHandle;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
-
     // Test Case 1: Invalid Pool Handle
-    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, invalidPool, size, bufferHandle, Status::EX_NONE);
+    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, invalidPool, size, videobufferHandle, Status::EX_NONE);
 
-    // Test Case 2: Size Greater Than Pool Capacity
-    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, gAVBuffer_hfp.secureHeapBytes + 1, bufferHandle, Status::EX_SERVICE_SPECIFIC);
-    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, gAVBuffer_hfp.nonSecureHeapBytes + 1, bufferHandle, Status::EX_SERVICE_SPECIFIC);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
 
-    // Test Case 3: Zero Size Allocation
-    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, 0, bufferHandle, Status::EX_NONE);
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, videoPool, videoPoolMetrics);
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
+
+        // Test Case 2: Size Greater Than Pool Capacity
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, videobufferHandle, Status::EX_SERVICE_SPECIFIC);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, audioBufferHandle, Status::EX_SERVICE_SPECIFIC);
+
+        // Test Case 3: Zero Size Allocation
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, 0, videobufferHandle, Status::EX_NONE);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, 0, audioBufferHandle, Status::EX_NONE);
+
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -823,16 +946,24 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    // Test Case 1: Valid video Pool Handle and Size
-    AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, videoPool, size);
-    // Test Case 2: valid audio pool Handle and size
-    AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, audioPool, size);
+        // Test Case 1: Valid video Pool Handle and Size
+        AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, videoPool, size);
+        // Test Case 2: valid audio pool Handle and size
+        AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, audioPool, size);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -866,6 +997,8 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
     Pool audioPool;
     Pool invalidPool;
     invalidPool.handle = Pool::INVALID;
+    PoolMetrics videoPoolMetrics;
+    PoolMetrics audioPoolMetrics;
     int32_t size = 1024;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -873,26 +1006,33 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
-
     // Test Case 1: Invalid Pool Handle
     AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, invalidPool, size, Status::EX_ILLEGAL_ARGUMENT);
 
-    // Test Case 2: Size Exceeds Pool Capacity (video pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, gAVBuffer_hfp.nonSecureHeapBytes + 1, Status::EX_ILLEGAL_ARGUMENT);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    // Test Case 3: Zero Size (video pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, 0, Status::EX_ILLEGAL_ARGUMENT);
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, videoPool, videoPoolMetrics);
+        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
 
-    // Test Case 4: Size Exceeds Pool Capacity (audio pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, gAVBuffer_hfp.secureHeapBytes + 1, Status::EX_ILLEGAL_ARGUMENT);
+        // Test Case 2: Size Exceeds Pool Capacity
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, Status::EX_ILLEGAL_ARGUMENT);
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, Status::EX_ILLEGAL_ARGUMENT);
 
-    // Test Case 5: Zero Size (audio pool)
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, 0, Status::EX_ILLEGAL_ARGUMENT);
+        // Test Case 3: Zero Size
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, 0, Status::EX_ILLEGAL_ARGUMENT);
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, 0, Status::EX_ILLEGAL_ARGUMENT);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -933,31 +1073,40 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    // Test Case 1: Positive Scenario - Valid bufferHandle and newSize
-    new_size = size - 128;
-    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
-    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
-    new_size = size - 128;
-    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
-    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
+        // Test Case 1: Positive Scenario - Valid bufferHandle and newSize
+        new_size = size - 128;
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
 
-    // Test Case 2: Positive Scenario - Minimum valid newSize
-    new_size = 1;
-    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
-    AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
+        // Test Case 2: Trim to same size
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+        // Test Case 3: Positive Scenario - Minimum valid newSize
+        new_size = 1;
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, videobufferHandle, new_size);
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, audioBufferHandle, new_size);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -991,47 +1140,57 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
     Pool audioPool;
     int32_t size = 1024;
     int32_t new_size = size;
-    int64_t videobufferHandle;
-    int64_t audioBufferHandle;
+    int64_t videobufferHandle, videobufferHandle_new;
+    int64_t audioBufferHandle, audioBufferHandle_new;
+    int64_t invalidBufferHandle = Pool::INVALID;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
-
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-
-    int64_t invalidBufferHandle = Pool::INVALID;
-
     // Negative Scenario - Invalid bufferHandle (not last allocated)
     AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, invalidBufferHandle, new_size, Status::EX_NONE);
 
-    // Negative Scenario - Invalid newSize (zero) -  Video buffer handle
-    new_size = 0;
-    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    // Negative Scenario - Invalid newSize (greater than original size)
-    new_size = size + 1;
-    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    // Negative Scenario - Invalid newSize (zero) - Audio buffer handle
-    new_size = 0;
-    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
+        // Negative Scenario - Invalid newSize (zero) -  Video buffer handle
+        new_size = 0;
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
 
-    // Negative Scenario - Invalid newSize (greater than original size)
-    new_size = size + 1;
-    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
+        // Negative Scenario - Invalid newSize (greater than original size)
+        new_size = size + 1;
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+        // Negative Scenario - buffer handle is not last allocated
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle_new);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle_new);
+        new_size = size;
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_ILLEGAL_STATE);
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_ILLEGAL_STATE);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle_new);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle_new);
+
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -1072,20 +1231,28 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    // Test Case 1: Valid video Pool Handle and Size
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    // Test Case 2: Valid audio Pool Handle and Size
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+        // Test Case 1: Valid video Pool Handle and Size
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        // Test Case 2: Valid audio Pool Handle and Size
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -1128,25 +1295,33 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
-
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-
     // Test Case 1: Invalid Buffer Handle
     AVBUFFER_FREE_FAILURE(gAVBufferManager, invalidBufferHandle, Status::EX_NONE);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    // Test Case 2: Invalid Buffer Handle (already freed handle)
-    AVBUFFER_FREE_FAILURE(gAVBufferManager, videobufferHandle, Status::EX_NONE);
-    AVBUFFER_FREE_FAILURE(gAVBufferManager, audioBufferHandle, Status::EX_NONE);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+        // Test Case 2: Invalid Buffer Handle (already freed handle)
+        AVBUFFER_FREE_FAILURE(gAVBufferManager, videobufferHandle, Status::EX_NONE);
+        AVBUFFER_FREE_FAILURE(gAVBufferManager, audioBufferHandle, Status::EX_NONE);
+
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -1189,36 +1364,42 @@ UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
-
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-
-    //Test 1: Test with valid buffer handle
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-    UT_ASSERT_TRUE(isValidResult);
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-    UT_ASSERT_TRUE(isValidResult);
-
-    //Test 2: Test with invalid buffer handle
+    //Test 1: Test with invalid buffer handle
     AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, invalidBufferHandle, isValidResult);
     UT_ASSERT_FALSE(isValidResult);
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle + 1, isValidResult);
-    UT_ASSERT_FALSE(isValidResult);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    //Test 3: Test with invalid buffer handle (already freed handle)
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-    UT_ASSERT_FALSE(isValidResult);
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-    UT_ASSERT_FALSE(isValidResult);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        //Test 1: Test with valid buffer handle
+        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
+        UT_ASSERT_TRUE(isValidResult);
+        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
+        UT_ASSERT_TRUE(isValidResult);
+
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+        //Test 3: Test with invalid buffer handle (already freed handle)
+        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
+        UT_ASSERT_FALSE(isValidResult);
+        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
+        UT_ASSERT_FALSE(isValidResult);
+
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -1263,26 +1444,34 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    AVBUFFER_GETALLOCLIST_SUCCESS(gAVBufferManager, videoPool, allocList);
-    UT_ASSERT_TRUE(allocList.size() == 1);
-    UT_ASSERT_TRUE(allocList[0] == videobufferHandle);
+        AVBUFFER_GETALLOCLIST_SUCCESS(gAVBufferManager, videoPool, allocList);
+        UT_ASSERT_TRUE(allocList.size() == 1);
+        UT_ASSERT_TRUE(allocList[0] == videobufferHandle);
 
-    AVBUFFER_GETALLOCLIST_SUCCESS(gAVBufferManager, audioPool, allocList);
-    UT_ASSERT_TRUE(allocList.size() == 1);
-    UT_ASSERT_TRUE(allocList[0] == audioBufferHandle);
+        AVBUFFER_GETALLOCLIST_SUCCESS(gAVBufferManager, audioPool, allocList);
+        UT_ASSERT_TRUE(allocList.size() == 1);
+        UT_ASSERT_TRUE(allocList[0] == audioBufferHandle);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**
@@ -1360,21 +1549,30 @@ UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, true, audioDecoderId, listener, audioPool);
+    for (bool secureHeap : {true, false})
+    {
+        //Skip if the plafrom doesn't support secure heap
+        if (secureHeap && !gAVBuffer_hfp.supportSecure)
+        {
+            continue;
+        }
 
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
-    AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, videobufferHandle, sha1Result);
-    AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, audioBufferHandle, sha1Result);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
 
-    // Teardown
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
-    AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+        AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, videobufferHandle, sha1Result);
+        AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, audioBufferHandle, sha1Result);
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        // Teardown
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager, audioBufferHandle);
+
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+    }
 }
 
 /**

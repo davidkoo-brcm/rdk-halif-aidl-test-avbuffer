@@ -78,6 +78,7 @@ struct avbuffer
     ::std::vector<int32_t> audioDecoderId;
     uint32_t nonSecureHeapBytes;
     uint32_t secureHeapBytes;
+    bool supportSecure;
 };
 
 #define VIDEODECODER_PATH "IVideoDecoderManager.IVideoDecoder"
