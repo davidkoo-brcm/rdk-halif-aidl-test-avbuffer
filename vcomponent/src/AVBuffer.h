@@ -23,82 +23,97 @@
  * The header file contains the AVBuffer service interfaces.
  */
 
-#ifndef _AV_BUFFER_H_
-#define _AV_BUFFER_H_
+#ifndef AV_BUFFER_H
+#define AV_BUFFER_H
 
-#include <mutex>
-#include <sstream>
-#include <string>
-#include <thread>
-#include <unistd.h>
-#include <vector>
-
-#include <android/log.h>
 #include <binder/BinderService.h>
-#include <binder/Status.h>
-#include <utils/Errors.h>
-#include <utils/Log.h>
-
-#include <utils/String16.h>
-#include <utils/Vector.h>
+#include <optional>
+#include <string>
+#include <utils/StrongPointer.h>
+#include <vector>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+#include <chrono>
+#include <thread>
+#include <ctime>
+#include <sstream>
+#include <iomanip>
+#include <unistd.h>
+#include <atomic>
 
 #include "com/rdk/hal/avbuffer/BnAVBuffer.h"
-#include "com/rdk/hal/avbuffer/IAVBufferSpaceListener.h"
-#include "com/rdk/hal/avbuffer/HeapMetrics.h"
-#include "com/rdk/hal/avbuffer/Pool.h"
-#include "com/rdk/hal/avbuffer/PoolMetrics.h"
+#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
 #include "com/rdk/hal/videodecoder/IVideoDecoder.h"
 #include "com/rdk/hal/audiodecoder/IAudioDecoder.h"
 
-// libutils
-using android::OK;
-using android::String8;
-using android::String16;
-using android::sp;
 
-// libbinder
-using android::defaultServiceManager;
-using android::binder::Status;
+#define NUM_AUDIO_DECODER 2
+#define NUM_VIDEO_DECODER 2
 
-// Generated code
-using com::rdk::hal::avbuffer::BnAVBuffer;
+namespace com {
+    namespace rdk {
+        namespace hal {
+            namespace avbuffer {
 
-// Standard library
-using std::string;
-using std::unique_ptr;
-using std::vector;
-using std::mutex;
+#define SECURE_HEAP_SIZE 16000000
+#define NON_SECURE_HEAP_SIZE 16000000
+#define VIDEO_POOL_SIZE 1000000
+#define AUDIO_POOL_SIZE 1000000
+#define POOL_SIZE 1000000
 
-using namespace com::rdk::hal::avbuffer;
-using namespace com::rdk::hal::videodecoder;
-using namespace com::rdk::hal::audiodecoder;
-using namespace com::rdk::hal;
+                class AVBuffer : public android::BinderService<AVBuffer>,
+                                 public BnAVBuffer {
+                private:
+                    struct InternalPoolInfo {
+                        PoolMetrics metrics;
+                        bool isSecure;
+                    };
 
-class AVBuffer : public android::BinderService<AVBuffer>,
-                  public BnAVBuffer {
-    private:
-        friend class BinderService<AVBuffer>;
+                    struct BufferInfo {
+                        Pool poolHandle;
+                        int32_t size;
+                        bool valid;
+                    };
 
-    AVBuffer() {}
-        virtual ~AVBuffer() = default;
+                    long secureHeapSize;
+                    long nonSecureHeapSize;
+                    long totalSecureBytesUsed;
+                    long totalNonSecureBytesUsed;
+                    static std::atomic<uint8_t> poolHandleCounter;
+                    static std::atomic<int64_t> bufferHandleCounter;
+                    std::unordered_map<uint8_t, InternalPoolInfo> poolMetricsMap;
+                    std::unordered_map<int64_t, BufferInfo> bufferMap;
+                    std::unordered_map<uint8_t, std::vector<int64_t>> poolAllocations;
+                    android::sp<IAVBufferSpaceListener> spaceListener;
 
-        static char const* getServiceName() { return IAVBuffer::serviceName().c_str(); }
+                    std::mutex poolMutex;
+                    std::mutex bufferLock;
+                    std::condition_variable _cv;
 
-    // Implementations of the methods declared in the AIDL interface
-    virtual ::android::binder::Status getHeapMetrics(bool secureHeap, HeapMetrics* _aidl_return) override;
-    virtual ::android::binder::Status createVideoPool(bool secureHeap, const IVideoDecoder::Id& videoDecoderId, const sp<IAVBufferSpaceListener>& listener, Pool* _aidl_return) override;
-    virtual ::android::binder::Status createAudioPool(bool secureHeap, const IAudioDecoder::Id& audioDecoderId, const sp<IAVBufferSpaceListener>& listener, Pool* _aidl_return) override;
-    virtual ::android::binder::Status destroyPool(const Pool& poolHandle, bool * t) override;
-    virtual ::android::binder::Status getPoolMetrics(const Pool& poolHandle, PoolMetrics* _aidl_return) override;
-    virtual ::android::binder::Status getAllPoolMetrics(bool secureHeap, std::vector<PoolMetrics>* _aidl_return) override;
-    virtual ::android::binder::Status alloc(const Pool& poolHandle, int size, int64_t* _aidl_return) override;
-    virtual ::android::binder::Status notifyWhenSpaceAvailable(const Pool& poolHandle, int size, bool * t) override;
-    virtual ::android::binder::Status trimSize(int64_t bufferHandle, int newSize , bool * t) override;
-    virtual ::android::binder::Status free(int64_t bufferHandlei , bool * t ) override;
-    virtual ::android::binder::Status isValid(int64_t bufferHandle, bool* _aidl_return) override;
-    virtual ::android::binder::Status getAllocList(const Pool& poolHandle, std::vector<int64_t>* _aidl_return) override;
-    virtual ::android::binder::Status calculateSHA1(int64_t bufferHandle, std::vector<uint8_t>* _aidl_return) override;
+                public:
+                    AVBuffer();
+                    virtual ~AVBuffer();
 
-};
+                    static char const *getServiceName() { return IAVBuffer::serviceName().c_str(); }
 
-#endif //_AV_BUFFER_H_
+                    ::android::binder::Status getHeapMetrics(bool secureHeap, ::com::rdk::hal::avbuffer::HeapMetrics* _aidl_return) override;
+                    ::android::binder::Status createVideoPool(bool secureHeap, const ::com::rdk::hal::videodecoder::IVideoDecoder::Id& videoDecoderId, const ::android::sp<::com::rdk::hal::avbuffer::IAVBufferSpaceListener>& listener, ::com::rdk::hal::avbuffer::Pool* _aidl_return) override;
+                    ::android::binder::Status createAudioPool(bool secureHeap, const ::com::rdk::hal::audiodecoder::IAudioDecoder::Id& audioDecoderId, const ::android::sp<::com::rdk::hal::avbuffer::IAVBufferSpaceListener>& listener, ::com::rdk::hal::avbuffer::Pool* _aidl_return) override;
+                    ::android::binder::Status destroyPool(const ::com::rdk::hal::avbuffer::Pool& poolHandle, bool* _aidl_return) override;
+                    ::android::binder::Status getPoolMetrics(const ::com::rdk::hal::avbuffer::Pool& poolHandle, ::com::rdk::hal::avbuffer::PoolMetrics* _aidl_return) override;
+                    ::android::binder::Status getAllPoolMetrics(bool secureHeap, ::std::vector<::com::rdk::hal::avbuffer::PoolMetrics>* _aidl_return) override;
+                    ::android::binder::Status alloc(const ::com::rdk::hal::avbuffer::Pool& poolHandle, int32_t size, int64_t* _aidl_return) override;
+                    ::android::binder::Status notifyWhenSpaceAvailable(const ::com::rdk::hal::avbuffer::Pool& poolHandle, int32_t size, bool* _aidl_return) override;
+                    ::android::binder::Status trimSize(int64_t bufferHandle, int32_t newSize, bool* _aidl_return) override;
+                    ::android::binder::Status free(int64_t bufferHandle, bool* _aidl_return) override;
+                    ::android::binder::Status isValid(int64_t bufferHandle, bool* _aidl_return) override;
+                    ::android::binder::Status getAllocList(const ::com::rdk::hal::avbuffer::Pool& poolHandle, ::std::vector<int64_t>* _aidl_return) override;
+                    ::android::binder::Status calculateSHA1(int64_t bufferHandle, ::std::vector<uint8_t>* _aidl_return) override;
+                };
+            }
+        }
+    }
+}
+
+#endif AV_BUFFER_H
