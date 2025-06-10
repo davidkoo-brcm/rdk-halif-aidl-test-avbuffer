@@ -89,9 +89,9 @@ do { \
     UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                  secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
                  UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-    UT_ASSERT_TRUE(status.isOk()); \
-    UT_ASSERT_NOT_EQUAL(videoPool.handle, Pool::INVALID); \
-    UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    UT_ASSERT_TRUE_FATAL(status.isOk()); \
+    UT_ASSERT_NOT_EQUAL_FATAL(videoPool.handle, Pool::INVALID); \
+    UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE); \
 } while (0)
 
 #define AVBUFFER_CREATE_VIDEOPOOL_FAILURE(avBufferManager, secureHeap, videoDecoderId, listener, videoPool, exception) \
@@ -115,9 +115,9 @@ do { \
         UT_LOG_INFO("Result createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_NOT_EQUAL(audioPool.handle, Pool::INVALID); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+        UT_ASSERT_TRUE_FATAL(status.isOk()); \
+        UT_ASSERT_NOT_EQUAL_FATAL(audioPool.handle, Pool::INVALID); \
+        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
 #define AVBUFFER_CREATE_AUDIOPOOL_FAILURE(avBufferManager, secureHeap, audioDecoderId, listener, audioPool, exception) \
@@ -143,9 +143,9 @@ do { \
                     pool.handle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_TRUE(_aidl_return); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+        UT_ASSERT_TRUE_FATAL(status.isOk()); \
+        UT_ASSERT_TRUE_FATAL(_aidl_return); \
+        UT_ASSERT_EQUAL_FATAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
 #define AVBUFFER_DESTROY_POOL_FAILURE(avBufferManager, pool, exception) \
