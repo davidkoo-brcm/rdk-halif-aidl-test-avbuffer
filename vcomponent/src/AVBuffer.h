@@ -56,8 +56,8 @@ namespace com {
         namespace hal {
             namespace avbuffer {
 
-#define SECURE_HEAP_SIZE 0
-#define NON_SECURE_HEAP_SIZE 28311552
+#define SECURE_HEAP_SIZE 16000000
+#define NON_SECURE_HEAP_SIZE 16000000
 #define VIDEO_POOL_SIZE 1000000
 #define AUDIO_POOL_SIZE 1000000
 #define POOL_SIZE 1000000
