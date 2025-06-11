@@ -298,9 +298,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
         /* Exhaust the heap memory */
         while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= videoPoolMetrics.bytesTotal)
         {
+            int prev_bytestotal = heapMetrics.bytesTotal;
             AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
             videoPools.push_back(videoPool);
             AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
+            if(prev_bytestotal == heapMetrics.bytesTotal)
+                break;
         }
 
         /* Try to allocate the memory */
