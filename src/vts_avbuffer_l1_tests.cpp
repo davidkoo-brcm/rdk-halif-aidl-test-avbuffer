@@ -765,6 +765,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
         for (const auto& metrics : poolMetrics)
         {
             Pool pool;
+            pool.handle = Pool::INVALID;
             int16_t size_alloc = 50;
 
             if(metrics.poolHandle.handle == videoPool.handle)
