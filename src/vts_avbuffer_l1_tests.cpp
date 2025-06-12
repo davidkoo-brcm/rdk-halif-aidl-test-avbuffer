@@ -456,9 +456,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
         /* Exhaust the heap memory */
         while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= audioPoolMetrics.bytesTotal)
         {
+            int prev_bytestotal = heapMetrics.bytesTotal;
             AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
             audioPools.push_back(audioPool);
             AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
+            if(prev_bytestotal == heapMetrics.bytesTotal)
+                break;
         }
 
         /* Try to allocate the memory */
@@ -737,38 +740,70 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
     Pool audioPool;
-    std::vector<PoolMetrics> poolMetricsNonSecure;
-    std::vector<PoolMetrics> poolMetricsSecure;
-
-    bool secureHeap = false;
+    PoolMetrics getpoolMetrics;
+    int64_t firstbufferHandle;
+    int64_t secondbufferHandle;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, false, videoDecoderId, listener, videoPool);
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, gAVBuffer_hfp.supportSecure, audioDecoderId, listener, audioPool);
-
-    AVBUFFER_GETALLPOOL_METRICS_SUCCESS(gAVBufferManager, secureHeap, poolMetricsNonSecure);
-    for (const auto& metrics : poolMetricsNonSecure)
+    for (bool secureHeap : {true, false})
     {
-        UT_ASSERT_NOT_EQUAL(metrics.poolHandle.handle, Pool::INVALID);
-        UT_ASSERT_GREATER_EQUAL(metrics.bytesUsed, 0);
-        UT_ASSERT_GREATER_EQUAL(metrics.bytesTotal, metrics.bytesUsed);
-    }
+        std::vector<PoolMetrics> poolMetrics;
 
-    secureHeap = true;
-    AVBUFFER_GETALLPOOL_METRICS_SUCCESS(gAVBufferManager, secureHeap, poolMetricsSecure);
-    for (const auto& metrics : poolMetricsSecure)
-    {
-        UT_ASSERT_NOT_EQUAL(metrics.poolHandle.handle, Pool::INVALID);
-        UT_ASSERT_GREATER_EQUAL(metrics.bytesUsed, 0);
-        UT_ASSERT_GREATER_EQUAL(metrics.bytesTotal, metrics.bytesUsed);
-    }
+        if(secureHeap && !gAVBuffer_hfp.secureHeapBytes)
+        {
+           continue;
+        }
 
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
+        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
+
+        AVBUFFER_GETALLPOOL_METRICS_SUCCESS(gAVBufferManager, secureHeap, poolMetrics);
+        for (const auto& metrics : poolMetrics)
+        {
+            Pool pool;
+            int16_t size_alloc = 50;
+
+            if(metrics.poolHandle.handle == videoPool.handle)
+            {
+                UT_ASSERT_TRUE(true);
+                pool = videoPool;
+                UT_LOG_INFO("Inside of video pool video pool = %d ", pool);
+            }
+            else if (metrics.poolHandle.handle == audioPool.handle)
+            {
+                UT_ASSERT_TRUE(true);
+                pool = audioPool;
+                UT_LOG_INFO("Inside of audio pool audio pool = %d ", pool);
+            }
+            else
+            {
+                UT_ASSERT_FALSE(false);
+                UT_LOG_INFO("Inside of else pool handle = %d ", pool);
+            }
+
+            AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, size_alloc, firstbufferHandle);
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, getpoolMetrics);
+            UT_ASSERT_GREATER_EQUAL(getpoolMetrics.bytesUsed, size_alloc);
+            AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, size_alloc, secondbufferHandle);
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, getpoolMetrics);
+            UT_ASSERT_GREATER_EQUAL(getpoolMetrics.bytesUsed, size_alloc+size_alloc);
+            AVBUFFER_FREE_SUCCESS(gAVBufferManager, firstbufferHandle);
+            AVBUFFER_FREE_SUCCESS(gAVBufferManager, secondbufferHandle);
+        }
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
+        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
+        AVBUFFER_GETALLPOOL_METRICS_SUCCESS(gAVBufferManager, secureHeap, poolMetrics);
+        for (const auto& metrics : poolMetrics)
+        {
+            UT_ASSERT_NOT_EQUAL(metrics.poolHandle.handle, Pool::INVALID);
+            UT_ASSERT_GREATER_EQUAL(metrics.bytesUsed, 0);
+            UT_ASSERT_GREATER_EQUAL(metrics.bytesTotal, metrics.bytesUsed);
+        }
+    }
 }
 
 /**

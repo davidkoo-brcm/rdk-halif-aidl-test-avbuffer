@@ -188,8 +188,8 @@ do { \
     do { \
         UT_LOG_INFO("Calling getAllPoolMetrics(IN:secureHeap:[%s], OUT:poolMetrics[])", UT_Control_GetMapString(bool_mapTable, secureHeap)); \
         Status status = avBufferManager->getAllPoolMetrics(secureHeap, &poolMetrics); \
-        UT_LOG_INFO("Result getAllPoolMetrics(IN:secureHeap:[false], OUT:poolMetrics[%zu]), status:[isOK:%s, exception:%s]", \
-                     poolMetrics.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+        UT_LOG_INFO("Result getAllPoolMetrics(IN:secureHeap:[%s], OUT:poolMetrics[%zu]), status:[isOK:%s, exception:%s]", \
+            UT_Control_GetMapString(bool_mapTable, secureHeap), poolMetrics.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                      UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
