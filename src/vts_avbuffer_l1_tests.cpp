@@ -268,7 +268,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
 
     // Test with invalid listener
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
-    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener_nullptr, videoPool, Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener_nullptr, videoPool, Status::EX_NULL_POINTER);
 
     // Test with secure flag if platform doesn't support secure
     if(!gAVBuffer_hfp.supportSecure)
@@ -298,11 +298,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
         /* Exhaust the heap memory */
         while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= videoPoolMetrics.bytesTotal)
         {
-            int prev_bytestotal = heapMetrics.bytesTotal;
+            int prev_bytesUsed = heapMetrics.bytesUsed;
             AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
             videoPools.push_back(videoPool);
             AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
-            if(prev_bytestotal == heapMetrics.bytesTotal)
+            if(prev_bytesUsed == heapMetrics.bytesUsed)
                 break;
         }
 
@@ -313,6 +313,8 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
         {
             AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, pool);
         }
+
+        videoPools.clear();
     }
 }
 
@@ -434,7 +436,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
 
     //Null Listener for Audio Pool Creation
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front(); // Use a valid ID
-    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener_nullptr, audioPool, Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener_nullptr, audioPool, Status::EX_NULL_POINTER);
 
     // Test out of memory
     for (bool secureHeap : {true, false})
@@ -456,11 +458,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
         /* Exhaust the heap memory */
         while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= audioPoolMetrics.bytesTotal)
         {
-            int prev_bytestotal = heapMetrics.bytesTotal;
+            int prev_bytesUsed = heapMetrics.bytesUsed;
             AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
             audioPools.push_back(audioPool);
             AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
-            if(prev_bytestotal == heapMetrics.bytesTotal)
+            if(prev_bytesUsed == heapMetrics.bytesUsed)
                 break;
         }
 
@@ -471,6 +473,8 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
         {
             AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, pool);
         }
+
+        audioPools.clear();
     }
 }
 

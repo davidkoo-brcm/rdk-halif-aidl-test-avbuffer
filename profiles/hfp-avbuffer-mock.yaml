@@ -10,7 +10,7 @@ IVideoDecoderManager:           # Component object begins
   supportedOperationalModes:
     - NON_TUNNELLED
   IVideoDecoder:                # Resource list
-    - 0:                        # Resource object begins
+    - id: 0                        # Resource object begins
       supportedCodecs:          # Array of codec capabilities
         - MPEG:
             maxFrameRate: 60
@@ -38,7 +38,7 @@ IVideoDecoderManager:           # Component object begins
         - HDR10
         - DOLBY_VISION
       supportsSecure: true
-    - 1:                          # Resource object begins
+    - id: 1                          # Resource object begins
       supportedCodecs:          # Array of codec capabilities
         - MPEG:
             maxFrameRate: 60
@@ -67,25 +67,25 @@ IVideoDecoderManager:           # Component object begins
 IAudioDecoderManager:           # Component object begins
     interfaceVersion: current
     IAudioDecoder:              # Resource list
-      - 0:                      # Resource object begins
-         supportedCodecs:       # Array of codec capabilities
-           - AAC_LC
-           - HE_AAC
-           - HE_AAC2
-           - DOLBY_AC3
-           - DOLBY_AC3_PLUS
-           - DOLBY_AC3_PLUS_JOC
-           - DOLBY_AC4
-           - X_HE_AAC
-         supportsSecure: true
-      - 1:                      # Resource object begins
-         supportedCodecs:       # Array of codec capabilities
-           - AAC_LC
-           - HE_AAC
-           - HE_AAC2
-           - DOLBY_AC3
-           - DOLBY_AC3_PLUS
-           - DOLBY_AC3_PLUS_JOC
-           - DOLBY_AC4
-           - X_HE_AAC
-         supportsSecure: true
+      - id: 0                      # Resource object begins
+        supportedCodecs:       # Array of codec capabilities
+          - AAC_LC
+          - HE_AAC
+          - HE_AAC2
+          - DOLBY_AC3
+          - DOLBY_AC3_PLUS
+          - DOLBY_AC3_PLUS_JOC
+          - DOLBY_AC4
+          - X_HE_AAC
+        supportsSecure: true
+      - id: 1                      # Resource object begins
+        supportedCodecs:       # Array of codec capabilities
+          - AAC_LC
+          - HE_AAC
+          - HE_AAC2
+          - DOLBY_AC3
+          - DOLBY_AC3_PLUS
+          - DOLBY_AC3_PLUS_JOC
+          - DOLBY_AC4
+          - X_HE_AAC
+        supportsSecure: true
