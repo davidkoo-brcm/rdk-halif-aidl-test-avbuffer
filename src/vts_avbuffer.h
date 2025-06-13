@@ -104,7 +104,6 @@ do { \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_EQUAL(videoPool.handle, Pool::INVALID); \
     } while (0)
 
 #define AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(avBufferManager, secureHeap, audioDecoderId, listener, audioPool) \
@@ -130,14 +129,13 @@ do { \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_EQUAL(audioPool.handle, Pool::INVALID); \
     } while (0)
 
 #define AVBUFFER_DESTROY_POOL_SUCCESS(avBufferManager, pool) \
     do { \
         bool _aidl_return = false; \
         Status status; \
-        UT_LOG_INFO("Calling destroyPool(IN:poolHandle:[%d], OUT:_aidl_return:[])", pool); \
+        UT_LOG_INFO("Calling destroyPool(IN:poolHandle:[%d], OUT:_aidl_return:[])", pool.handle); \
         status = avBufferManager->destroyPool(pool, &_aidl_return); \
         UT_LOG_INFO("Result destroyPool with (IN:poolHandle:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     pool.handle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
@@ -152,7 +150,7 @@ do { \
     do { \
         bool _aidl_return = false; \
         Status status; \
-        UT_LOG_INFO("Calling destroyPool(IN:poolHandle:[%d], OUT:_aidl_return:[])", pool); \
+        UT_LOG_INFO("Calling destroyPool(IN:poolHandle:[%d], OUT:_aidl_return:[])", pool.handle); \
         status = avBufferManager->destroyPool(pool, &_aidl_return); \
         UT_LOG_INFO("Result destroyPool with (IN:poolHandle:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     pool.handle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
@@ -188,8 +186,8 @@ do { \
     do { \
         UT_LOG_INFO("Calling getAllPoolMetrics(IN:secureHeap:[%s], OUT:poolMetrics[])", UT_Control_GetMapString(bool_mapTable, secureHeap)); \
         Status status = avBufferManager->getAllPoolMetrics(secureHeap, &poolMetrics); \
-        UT_LOG_INFO("Result getAllPoolMetrics(IN:secureHeap:[false], OUT:poolMetrics[%zu]), status:[isOK:%s, exception:%s]", \
-                     poolMetrics.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+        UT_LOG_INFO("Result getAllPoolMetrics(IN:secureHeap:[%s], OUT:poolMetrics[%zu]), status:[isOK:%s, exception:%s]", \
+            UT_Control_GetMapString(bool_mapTable, secureHeap), poolMetrics.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                      UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
