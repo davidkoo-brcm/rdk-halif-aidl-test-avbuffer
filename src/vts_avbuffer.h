@@ -365,6 +365,20 @@ do { \
         } \
     } while (0)
 
+class AVBufferSpaceListener : public BnAVBufferSpaceListener
+{
+public:
+
+    AVBufferSpaceListener() {};
+    virtual ~AVBufferSpaceListener() = default;
+
+    Status onSpaceAvailable() override
+    {
+        return Status::ok();
+    }
+};
+
+
 #endif //__VTS_AVBUFFER_H__
 
 /** @} */ // End of AV_BUFFER_HALTEST_HEADER
