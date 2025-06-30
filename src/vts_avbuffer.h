@@ -65,6 +65,9 @@
 #ifndef __VTS_AVBUFFER_H__
 #define __VTS_AVBUFFER_H__
 
+const int32_t MAX_WAIT_MS = 100;
+const int32_t MAX_FINAL_WAIT_MS = 5000;
+
 #define AVBUFFER_GETMETRICS(avBufferManager, secureHeap, heapMetrics) \
     do { \
         UT_LOG_INFO("Calling getHeapMetrics(IN:secureHeap:[%s], OUT:heapMetrics[])", \
@@ -244,7 +247,7 @@ do { \
         UT_ASSERT_FALSE(_aidl_return); \
     } while (0)
 
-#define AVBUFFER_NOTIFYSPACE_SUCCESS(avBufferManager, pool, size) \
+    #define AVBUFFER_NOTIFYSPACE_SUCCESS(avBufferManager, pool, size) \
     do { \
         bool _aidl_return = false; \
         UT_LOG_INFO("Calling notifyWhenSpaceAvailable(IN:poolHandle:[%d], IN:size:[%d], OUT:_aidl_return)", pool.handle, size); \
@@ -364,17 +367,42 @@ do { \
             UT_ASSERT_TRUE(sha1Result.empty()); \
         } \
     } while (0)
+#define AVBUFFER_WAIT_FOR_SPACEAVAILABLE(avBufferManager, listener, isSpaceAvailable) \
+    do { \
+        int32_t sleep_time = 0; \
+        do \
+        { \
+            this_thread::sleep_for(chrono::milliseconds(MAX_WAIT_MS)); \
+            sleep_time += MAX_WAIT_MS; \
+            /* Check the state of the decoder */ \
+            isSpaceAvailable = listener->getIsSpaceAvailable(); \
+        } while (sleep_time < MAX_FINAL_WAIT_MS && isSpaceAvailable != true); \
+    } while (0)
 
 class AVBufferSpaceListener : public BnAVBufferSpaceListener
 {
-public:
+    private:
+        bool isSpaceAvailable = false;
+
+    public:
 
     AVBufferSpaceListener() {};
     virtual ~AVBufferSpaceListener() = default;
 
     Status onSpaceAvailable() override
     {
+        isSpaceAvailable = true;
         return Status::ok();
+    }
+
+    bool getIsSpaceAvailable()
+    {
+        if(isSpaceAvailable)
+        {
+            isSpaceAvailable = false;
+            return true;
+        }
+        return false;
     }
 };
 

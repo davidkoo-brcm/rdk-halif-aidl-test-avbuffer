@@ -39,6 +39,8 @@
 #include "vts_avbuffer.h"
 #include "vts_avbuffer_parse_hfp.h"
 
+#define MAX_DECODER_COUNT 5
+
 using android::sp;
 using android::String16;
 using android::defaultServiceManager;
@@ -104,6 +106,10 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 
 extern sp<IAVBuffer> gAVBufferManager;
 static sp<IAVBuffer> sAudioDecoderManager;
+static HeapMetrics sHeapMetrics;
+static std::vector<IAudioDecoder::Id> sAudioDecoderIds;
+static std::vector<IVideoDecoder::Id> sVideoDecoderIds;
+static std::vector<sp<IAVBufferSpaceListener>> sSpaceListeners;
 static sp<IAVBuffer> sVideoDecoderManager;
 
 UT_status_t vts_audiodecoder_getService()
@@ -139,22 +145,50 @@ UT_status_t vts_videodecoder_getService()
 
 class VTS_L3_AVBuffer : public virtual UTCore
 {
-protected:
-    static void SetUpTestSuite()
-    {
-        if(vts_audiodecoder_getService() != UT_STATUS_OK)
+    protected:
+        static void SetUpTestSuite()
         {
-            return UT_STATUS_FAILURE;
+            if(vts_audiodecoder_getService() != UT_STATUS_OK)
+            {
+                return UT_STATUS_FAILURE;
+            }
+            AUDIODECODER_MANAGER_GETAUDIODECODERIDS(sAudioDecoderIds);
+            if(vts_videodecoder_getService() != UT_STATUS_OK)
+            {
+                return UT_STATUS_FAILURE;
+            }
+            VIDEODECODER_MANAGER_GETVIDEODECODERIDS(sVideoDecoderIds);
         }
-        if(vts_videodecoder_getService() != UT_STATUS_OK)
-        {
-            return UT_STATUS_FAILURE;
-        }
-    }
 
-    static void TearDownTestSuite()
-    {
-    }
+        static void TearDownTestSuite()
+        {
+        }
+    public:
+        void createAudioPoolAndValidate(bool secureHeap, IAudioDecoder::ID _decoderId, Pool audioPool,IAVBufferSpaceListener listener)
+        {
+            AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, audioPool);
+            AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,sHeapMetrics);
+            UT_ASSERT_EQUAL(heapMetrics.secure,secureHeap);
+            UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
+            UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
+            UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
+            sSpaceListeners.emplace_back(listener);
+        }
+        void destroyPool(Pool pool)
+        {
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,pool);
+            sSpaceListeners.clear();
+        }
+        void createVideoPoolAndValidate(bool secureHeap, IVideoDecoder::ID _decoderId, Pool videoPool,IAVBufferSpaceListener listener)
+        {
+            AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, videoPool);
+            AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,sHeapMetrics);
+            UT_ASSERT_EQUAL(heapMetrics.secure,secureHeap);
+            UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
+            UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
+            UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
+            sSpaceListeners.emplace_back(listener);
+        }
 };
 
 /**
@@ -183,204 +217,483 @@ protected:
  */
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool)
 {
-    std::vector<IAudioDecoder::Id> decoderIds;
-    bool secureHeap;
+    bool secureHeap = false;
     Pool audioPool;
     HeapMetrics heapMetrics;
 
-    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-
-    AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds);
-
-    for(const auto& _decoderId: decoderIds)
+    for(const auto& _decoderId: sAudioDecoderIds)
     {
-        secureHeap = false;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, audioPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-        UT_ASSERT_FALSE(heapMetrics.secure);
-        UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-        UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-        UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
+        sp<IAVBufferSpaceListener> listener = new AVBudderSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        this->destroyAPool(audioPool);
     }
 
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopoolpcm)
 {
-    IAudioDecoder::Id> decoderId = IAudioDecoder::Id::UNDEFINED;
-    bool secureHeap;
+    IAudioDecoder::Id decoderId = IAudioDecoder::Id::UNDEFINED;
+    bool secureHeap = false;
     Pool audioPool;
-    HeapMetrics heapMetrics;
-
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-    secureHeap = false;
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, decoderId, listener, audioPool);
-    AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-    UT_ASSERT_FALSE(heapMetrics.secure);
-    UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-    UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-    UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
-
+    this->createAudioPoolAndValidate(secureHeap,decoderId,audioPool,listener);
+    this->destroyAPool(audioPool);
 
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_alloc)
 {
-    std::vector<IAudioDecoder::Id> decoderIds;
-    bool secureHeap;
+    bool secureHeap = false;
     Pool audioPool;
-    HeapMetrics heapMetrics;
     int64_t audioBufferHandle;
 
-    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds);
-
-    for(const auto& _decoderId: decoderIds)
+    for(const auto& _decoderId: sAudioDecoderIds)
     {
-        secureHeap = false;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, audioPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-        UT_ASSERT_FALSE(heapMetrics.secure);
-        UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-        UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-        UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(heapMetrics.bytesTotal - heapMetrics.used),audioBufferHandle);
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
         AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
+        this->destroyAPool(audioPool);
     }
 
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_trim)
 {
-    std::vector<IAudioDecoder::Id> decoderIds;
-    bool secureHeap;
+    bool secureHeap = false;
     Pool audioPool;
-    HeapMetrics heapMetrics;
     int64_t audioBufferHandle;
 
-    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-
-    AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds);
-
-    for(const auto& _decoderId: decoderIds)
+    for(const auto& _decoderId: sAudioDecoderIds)
     {
-        secureHeap = false;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, audioPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-        UT_ASSERT_FALSE(heapMetrics.secure);
-        UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-        UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-        UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(heapMetrics.bytesTotal - heapMetrics.used),audioBufferHandle);
-        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(heapMetrics.bytesTotal - heapMetrics.used)/2);
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(sHeapMetrics.bytesTotal - sHeapMetrics.used)/2);
         AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
+        this->destroyAPool(audioPool);
     }
 
 }
 
-UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool)
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_notify)
 {
-    std::vector<IAudioDecoder::Id> decoderIds;
-    bool secureHeap;
+    bool secureHeap = false;
     Pool audioPool;
-    HeapMetrics heapMetrics;
-
-    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-
-    AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds);
-
-    for(const auto& _decoderId: decoderIds)
-    {
-        secureHeap = false;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, audioPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-        UT_ASSERT_FALSE(heapMetrics.secure);
-        UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-        UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-        UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
-    }
-
-}
-
-UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopoolpcm)
-{
-    IAudioDecoder::Id> decoderId = IAudioDecoder::Id::UNDEFINED;
-    bool secureHeap;
-    Pool audioPool;
-    HeapMetrics heapMetrics;
-
-    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-    secureHeap = false;
-    AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, decoderId, listener, audioPool);
-    AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-    UT_ASSERT_FALSE(heapMetrics.secure);
-    UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-    UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-    UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-    AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
-
-
-}
-
-UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_alloc)
-{
-    std::vector<IAudioDecoder::Id> decoderIds;
-    bool secureHeap;
-    Pool audioPool;
-    HeapMetrics heapMetrics;
     int64_t audioBufferHandle;
 
-    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-
-    AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds);
-
-    for(const auto& _decoderId: decoderIds)
+    for(const auto& _decoderId: sAudioDecoderIds)
     {
-        secureHeap = false;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, audioPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-        UT_ASSERT_FALSE(heapMetrics.secure);
-        UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-        UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-        UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(heapMetrics.bytesTotal - heapMetrics.used),audioBufferHandle);
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(sHeapMetrics.bytesTotal - sHeapMetrics.used)/2);
         AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
+        this->destroyAPool(audioPool);
     }
 
 }
 
-UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_trim)
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool)
 {
-    std::vector<IAudioDecoder::Id> decoderIds;
-    bool secureHeap;
+    bool secureHeap = true;
     Pool audioPool;
     HeapMetrics heapMetrics;
-    int64_t audioBufferHandle;
 
-    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
-
-    AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds);
-
-    for(const auto& _decoderId: decoderIds)
+    for(const auto& _decoderId: sAudioDecoderIds)
     {
-        secureHeap = false;
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _decoderId, listener, audioPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager,secureHeap,heapMetrics);
-        UT_ASSERT_FALSE(heapMetrics.secure);
-        UT_ASSERT_GREATER_EQUAL(heapMetrics.bytesUsed, 0);
-        UT_ASSERT_LESS_EQUAL(heapMetrics.bytesUsed, heapMetrics.bytesTotal);
-        UT_ASSERT_EQUAL(heapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
-        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(heapMetrics.bytesTotal - heapMetrics.used),audioBufferHandle);
-        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(heapMetrics.bytesTotal - heapMetrics.used)/2);
-        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
-        AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,audioPool);
+        sp<IAVBufferSpaceListener> listener = new AVBudderSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        this->destroyAPool(audioPool);
     }
 
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopoolpcm)
+{
+    IAudioDecoder::Id decoderId = IAudioDecoder::Id::UNDEFINED;
+    bool secureHeap = true;
+    Pool audioPool;
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+    this->createAudioPoolAndValidate(secureHeap,decoderId,audioPool,listener);
+    this->destroyAPool(audioPool);
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_alloc)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    int64_t audioBufferHandle;
+
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_trim)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    int64_t audioBufferHandle;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(sHeapMetrics.bytesTotal - sHeapMetrics.used)/2);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_notify)
+{
+    bool secureHeap = false;
+    Pool audioPool;
+    int64_t audioBufferHandle;
+    bool isSpaceAvailable = false;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used));
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
+        isSpaceAvailable = false;
+        AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,listener, isSpaceAvailable);
+        UT_ASSERT_TRUE(isSpaceAvailable);
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool)
+{
+    bool secureHeap = false;
+    Pool audioPool;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBudderSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_alloc)
+{
+    bool secureHeap = false;
+    Pool audioPool;
+    int64_t audioBufferHandle[MAX_DECODER_COUNT];
+    int count = 0;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    long sizeAvailable = sHeapMetrics.bytesTotal - sHeapMetrics.used;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sizeAvailable)/(sAudioDecoderIds.size()),audioBufferHandle[count]);
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle[count]);
+        count++;
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_trim)
+{
+    bool secureHeap = false;
+    Pool audioPool;
+    int64_t audioBufferHandle[MAX_DECODER_COUNT];
+    int count = 0;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    long sizeAvailable = sHeapMetrics.bytesTotal - sHeapMetrics.used;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sizeAvailable)/(sAudioDecoderIds.size()),audioBufferHandle[count]);
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle[count],sizeAvailable/(2*(sAudioDecoderIds.size())));
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle[count]);
+        count++;
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_notify)
+{
+    bool secureHeap = false;
+    Pool audioPool;
+    int64_t audioBufferHandle[MAX_DECODER_COUNT];
+    int count = 0;
+    bool isSpaceAvailable = false;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    long sizeAvailable = sHeapMetrics.bytesTotal - sHeapMetrics.used;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sizeAvailable)/(sAudioDecoderIds.size()),audioBufferHandle[count]);
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used)/(sAudioDecoderIds.size()));
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle[count]);
+        count++;
+        this->destroyAPool(audioPool);
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        isSpaceAvailable = false;
+        AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,sSpaceListeners[count], isSpaceAvailable);
+        UT_ASSERT_TRUE(isSpaceAvailable);
+    }
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    HeapMetrics heapMetrics;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBudderSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopoolpcm)
+{
+    IAudioDecoder::Id decoderId = IAudioDecoder::Id::UNDEFINED;
+    bool secureHeap = true;
+    Pool audioPool;
+    sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+    this->createAudioPoolAndValidate(secureHeap,decoderId,audioPool,listener);
+    this->destroyAPool(audioPool);
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_alloc)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    int64_t audioBufferHandle;
+
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_trim)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    int64_t audioBufferHandle;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(sHeapMetrics.bytesTotal - sHeapMetrics.used)/2);
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_notify)
+{
+    bool secureHeap = false;
+    Pool audioPool;
+    int64_t audioBufferHandle;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used),audioBufferHandle);
+        AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used));
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle);
+        isSpaceAvailable = false;
+        AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,listener, isSpaceAvailable);
+        UT_ASSERT_TRUE(isSpaceAvailable);
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBudderSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_alloc)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    int64_t audioBufferHandle[MAX_DECODER_COUNT];
+    int count = 0;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    long sizeAvailable = sHeapMetrics.bytesTotal - sHeapMetrics.used;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sizeAvailable)/(sAudioDecoderIds.size()),audioBufferHandle[count]);
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle[count]);
+        count++;
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_trim)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    int64_t audioBufferHandle[MAX_DECODER_COUNT];
+    int count = 0;
+
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    long sizeAvailable = sHeapMetrics.bytesTotal - sHeapMetrics.used;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sizeAvailable)/(sAudioDecoderIds.size()),audioBufferHandle[count]);
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle[count],sizeAvailable/(2*(sAudioDecoderIds.size())));
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle[count]);
+        count++;
+        this->destroyAPool(audioPool);
+    }
+
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_notify)
+{
+    bool secureHeap = true;
+    Pool audioPool;
+    int64_t audioBufferHandle[MAX_DECODER_COUNT];
+    int count = 0;
+    bool isSpaceAvailable = false;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
+        this->createAudioPoolAndValidate(secureHeap,_decoderId,audioPool,listener);
+    }
+    long sizeAvailable = sHeapMetrics.bytesTotal - sHeapMetrics.used;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sizeAvailable)/(sAudioDecoderIds.size()),audioBufferHandle[count]);
+        count++;
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.used)/(sAudioDecoderIds.size()));
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        AVBUFFER_FREE_SUCCESS(gAVBufferManager,audioBufferHandle[count]);
+        count++;
+        this->destroyAPool(audioPool);
+    }
+    count = 0;
+    for(const auto& _decoderId: sAudioDecoderIds)
+    {
+        isSpaceAvailable = false;
+        AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,sSpaceListeners[count], isSpaceAvailable);
+        UT_ASSERT_TRUE(isSpaceAvailable);
+    }
 }
