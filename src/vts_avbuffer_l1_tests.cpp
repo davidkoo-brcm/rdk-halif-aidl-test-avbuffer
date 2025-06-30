@@ -51,6 +51,18 @@ using namespace com::rdk::hal::audiodecoder;
 
 UT_ADD_TEST_TO_GROUP(VTS_L1_AVBuffer, UT_TESTS_L1)
 
+class AVBufferSpaceListener : public BnAVBufferSpaceListener
+{
+public:
+
+    AVBufferSpaceListener() {};
+    virtual ~AVBufferSpaceListener() = default;
+
+    Status onSpaceAvailable() override
+    {
+        return Status::ok();
+    }
+};
 /* Status::Exception */
 const static ut_control_keyStringMapping_t statusException_mapTable[] =
 {
