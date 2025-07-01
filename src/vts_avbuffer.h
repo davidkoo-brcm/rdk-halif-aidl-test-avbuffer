@@ -74,8 +74,6 @@
 #define MAX_FINAL_WAIT_MS 5000
 
 
-#if 0
-#endif
 #define AVBUFFER_GETMETRICS(avBufferManager, secureHeap, heapMetrics) \
     do { \
         UT_LOG_INFO("Calling getHeapMetrics(IN:secureHeap:[%s], OUT:heapMetrics[])", \
