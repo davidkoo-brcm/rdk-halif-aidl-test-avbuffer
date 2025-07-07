@@ -206,7 +206,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
-        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%X]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%08X]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -218,7 +218,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
-        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%X]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%08X]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
@@ -228,9 +228,9 @@ do { \
 #define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%X], OUT:_aidl_return)", bufferHandle); \
+        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%08X], OUT:_aidl_return)", bufferHandle); \
         Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%08X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -242,9 +242,9 @@ do { \
 #define AVBUFFER_FREE_FAILURE(avBufferManager, bufferHandle, exception) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%X], OUT:_aidl_return)", bufferHandle); \
+        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%08X], OUT:_aidl_return)", bufferHandle); \
         Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%08X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -284,9 +284,9 @@ do { \
 #define AVBUFFER_TRIMSIZE_SUCCESS(avBufferManager, bufferHandle, newSize) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
+        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[0x%08X], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
         Status status = avBufferManager->trimSize(bufferHandle, newSize, &_aidl_return); \
-        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[%lld], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[0x%08X], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -308,9 +308,9 @@ do { \
 
 #define AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult) \
     do { \
-        UT_LOG_INFO("Calling isValid(IN:bufferHandle:[%lld], OUT:_aidl_return[])", bufferHandle); \
+        UT_LOG_INFO("Calling isValid(IN:bufferHandle:[0X%08X], OUT:_aidl_return[])", bufferHandle); \
         Status status = avBufferManager->isValid(bufferHandle, &isValidResult); \
-        UT_LOG_INFO("Result isValid(IN:bufferHandle:[%lld], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result isValid(IN:bufferHandle:[0X%08X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, isValidResult), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \

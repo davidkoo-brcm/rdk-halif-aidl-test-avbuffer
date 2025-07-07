@@ -41,6 +41,7 @@
 #include "vts_avbuffer_init.h"
 #include "vts_avbuffer_parse_hfp.h"
 #include "vts_avbuffer.h"
+#include "IAVBufferHelper.h"
 
 #define MAX_DECODER_COUNT 5
 
@@ -80,7 +81,7 @@ using namespace com::rdk::hal::audiodecoder;
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
-const uint8_t standard_data[256] = {
+uint8_t standard_data[256] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -176,13 +177,14 @@ public:
 
 extern sp<IAVBuffer> gAVBufferManager;
 static sp<IAudioDecoderManager> sAudioDecoderManager;
-static HeapMetrics sHeapMetrics;
+static PoolMetrics sPoolMetrics;
 static std::vector<IAudioDecoder::Id> sAudioDecoderIds;
 static std::vector<IVideoDecoder::Id> sVideoDecoderIds;
 static std::vector<sp<AVBufferSpaceListener>> sSpaceListeners;
-static std::vector<int> sBufferHandles;
+static std::vector<int64_t> sBufferHandles;
 static std::vector<Pool> sPoolsCreated;
 static sp<IVideoDecoderManager> sVideoDecoderManager;
+static IAVBufferHelper* sAVbufferHelper;
 
 static bool sSecureHeap;
 static bool sAllocateTest;
@@ -221,6 +223,7 @@ UT_status_t vts_videodecoder_getService()
 
 
 class VTS_L3_AVBuffer : public virtual UTCore
+
 {
     protected:
         static void SetUpTestSuite()
@@ -229,6 +232,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             AUDIODECODER_MANAGER_GETAUDIODECODERIDS(sAudioDecoderIds);
             UT_ASSERT_EQUAL(vts_videodecoder_getService(),UT_STATUS_OK);
             VIDEODECODER_MANAGER_GETVIDEODECODERIDS(sVideoDecoderIds);
+            sAVbufferHelper = getAVBufferHelperInstance();
         }
 
         static void TearDownTestSuite()
@@ -241,26 +245,30 @@ class VTS_L3_AVBuffer : public virtual UTCore
             bool isValidResult = false;
             bool isSpaceAvailable = false;
             int64_t audioBufferHandle;
+            void* mapBuffer =  NULL;
+            uint32_t mapSize = 0;
             uint8_t read_data[256] = {0};
             std::vector<uint8_t> sha1Result;
             sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
             AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, sSecureHeap, _decoderId, listener, audioPool);
-            AVBUFFER_GETMETRICS(gAVBufferManager,sSecureHeap,sHeapMetrics);
-            UT_ASSERT_EQUAL(sHeapMetrics.secure,sSecureHeap);
-            UT_ASSERT_GREATER_EQUAL(sHeapMetrics.bytesUsed, 0);
-            UT_ASSERT_LESS_EQUAL(sHeapMetrics.bytesUsed, sHeapMetrics.bytesTotal);
-            UT_ASSERT_EQUAL(sHeapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,audioPool,sPoolMetrics);
+            UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
+            UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
+
             if(sAllocateTest){
-                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.bytesUsed),audioBufferHandle);
+                if(sNotifyTest)
+                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)),audioBufferHandle);
+                else
+                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/sAudioDecoderIds.size()),audioBufferHandle);
                 AVBUFFER_ISVALID_SUCCESS(gAVBufferManager,audioBufferHandle, isValidResult);
                 UT_ASSERT_TRUE(isValidResult);
             }
             if(sNotifyTest){
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,audioPool,(sHeapMetrics.bytesTotal - sHeapMetrics.bytesUsed)/2);
+                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,audioPool,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sAudioDecoderIds.size()));
             }
             if(sTrimTest || sNotifyTest){
-                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(sHeapMetrics.bytesTotal - sHeapMetrics.bytesUsed)/2);
+                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sAudioDecoderIds.size()));
             }
             if(sNotifyTest)
             {
@@ -270,9 +278,25 @@ class VTS_L3_AVBuffer : public virtual UTCore
             }
             if(sReadWriteTest)
             {
-                std::memcpy((void *)audioBufferHandle,standard_data,sizeof(standard_data));
-                std::memcpy(read_data,(void *)audioBufferHandle,sizeof(read_data));
-                UT_ASSERT_TRUE((std::memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
+                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,sizeof(standard_data));
+                if(sSecureHeap){
+                    if(!sAVbufferHelper->writeSecureHandle(audioBufferHandle, standard_data, sizeof(standard_data)))
+                    {
+                        UT_LOG_ERROR("Failed to copy the data to secure buffer");
+                    }
+                }
+                else
+                {
+                    mapBuffer = sAVbufferHelper->mapHandle(audioBufferHandle, &mapSize);
+                    if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
+                        memcpy(mapBuffer, standard_data, sizeof(standard_data));
+                        memcpy(read_data,(void *)mapBuffer,sizeof(read_data));
+                        UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
+                        sAVbufferHelper->unmapHandle(audioBufferHandle);
+                    }else {
+                        UT_LOG_ERROR("Failed to copy the data to secure buffer");
+                    }
+                }
 
             }
             if(sSHA1Test)
@@ -286,7 +310,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
 
             sPoolsCreated.emplace_back(audioPool);
             sSpaceListeners.emplace_back(listener);
-            sBufferHandles.emplace_back(audioBufferHandle);
+            sBufferHandles.push_back(audioBufferHandle);
         }
         void createVideoPool(IVideoDecoder::Id _decoderId)
         {
@@ -295,25 +319,28 @@ class VTS_L3_AVBuffer : public virtual UTCore
             bool isSpaceAvailable = false;
             int64_t videoBufferHandle;
             uint8_t read_data[256] = {0};
+            void* mapBuffer =  NULL;
+            uint32_t mapSize = 0;
             std::vector<uint8_t> sha1Result;
             sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
             AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, sSecureHeap, _decoderId, listener, videoPool);
-            AVBUFFER_GETMETRICS(gAVBufferManager,sSecureHeap,sHeapMetrics);
-            UT_ASSERT_EQUAL(sHeapMetrics.secure,sSecureHeap);
-            UT_ASSERT_GREATER_EQUAL(sHeapMetrics.bytesUsed, 0);
-            UT_ASSERT_LESS_EQUAL(sHeapMetrics.bytesUsed, sHeapMetrics.bytesTotal);
-            UT_ASSERT_EQUAL(sHeapMetrics.bytesTotal,gAVBuffer_hfp.nonSecureHeapBytes);
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,videoPool,sPoolMetrics);
+            UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
+            UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
             if(sAllocateTest){
-                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,videoPool,(sHeapMetrics.bytesTotal - sHeapMetrics.bytesUsed),videoBufferHandle);
+                if(sNotifyTest)
+                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,videoPool,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed),videoBufferHandle);
+                else
+                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,videoPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/sVideoDecoderIds.size()),videoBufferHandle);
                 AVBUFFER_ISVALID_SUCCESS(gAVBufferManager,videoBufferHandle, isValidResult);
                 UT_ASSERT_TRUE(isValidResult);
             }
             if(sNotifyTest){
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,videoPool,(sHeapMetrics.bytesTotal - sHeapMetrics.bytesUsed)/2);
+                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,videoPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sVideoDecoderIds.size())));
             }
             if(sTrimTest || sNotifyTest){
-                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,videoBufferHandle,(sHeapMetrics.bytesTotal - sHeapMetrics.bytesUsed)/2);
+                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,videoBufferHandle,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sVideoDecoderIds.size())));
             }
             if(sNotifyTest)
             {
@@ -323,9 +350,25 @@ class VTS_L3_AVBuffer : public virtual UTCore
             }
             if(sReadWriteTest)
             {
-                std::memcpy((void *)videoBufferHandle,standard_data,sizeof(standard_data));
-                std::memcpy(read_data,(void *)videoBufferHandle,sizeof(read_data));
-                UT_ASSERT_TRUE((std::memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
+                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,videoBufferHandle,256);
+                if(sSecureHeap){
+                    if(!sAVbufferHelper->writeSecureHandle(videoBufferHandle, standard_data, sizeof(standard_data)))
+                    {
+                        UT_LOG_ERROR("Failed to copy the data to secure buffer");
+                    }
+                }
+                else
+                {
+                    mapBuffer = sAVbufferHelper->mapHandle(videoBufferHandle, &mapSize);
+                    if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
+                        memcpy(mapBuffer, standard_data, sizeof(standard_data));
+                        memcpy(read_data,(void *)mapBuffer,sizeof(read_data));
+                        UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
+                        sAVbufferHelper->unmapHandle(videoBufferHandle);
+                    }else {
+                        UT_LOG_ERROR("Failed to copy the data to secure buffer");
+                    }
+                }
 
             }
             if(sSHA1Test)
@@ -339,12 +382,13 @@ class VTS_L3_AVBuffer : public virtual UTCore
 
             sPoolsCreated.emplace_back(videoPool);
             sSpaceListeners.emplace_back(listener);
-            sBufferHandles.emplace_back(videoBufferHandle);
+            sBufferHandles.push_back(videoBufferHandle);
         }
         void destroyPools()
         {
             if(sAllocateTest){
                 for(const auto& bufferHandle : sBufferHandles){
+                    UT_LOG_INFO("bufferHandle:[0x%08X]", bufferHandle); \
                     AVBUFFER_FREE_SUCCESS(gAVBufferManager,bufferHandle);
                 }
                 sBufferHandles.clear();

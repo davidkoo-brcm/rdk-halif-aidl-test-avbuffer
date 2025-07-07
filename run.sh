@@ -47,8 +47,7 @@ if [ ! -w $DEV_BINDER ]; then
     exit 1
 fi
 
-export LD_LIBRARY_PATH=$RUN_DIR:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/usr/lib:/lib:/home/root:./
+export LD_LIBRARY_PATH=/usr/lib:/lib:/home/root:./:$RUN_DIR:$LD_LIBRARY_PATH
 
 # Check and start servicemanager (must run if not running)
 if check_process "servicemanager"; then
@@ -62,27 +61,27 @@ else
 	sleep 2
 fi
 
-# Check if either EmulateAVbufferService or AvBufferService is running
-if check_process "EmulateAVbufferService" || check_process "AvBufferService"; then
+# Check if either MockAVbufferService or AvBufferService is running
+if check_process "MockAVbufferService" || check_process "RDKAVBufferService"; then
     echo "AV Buffer service is already running"
-    if check_process "EmulateAVbufferService"; then
-        AvBufferService_pid=$(pgrep -f "EmulateAVbufferService")
+    if check_process "MockAVbufferService"; then
+        AvBufferService_pid=$(pgrep -f "MockAVbufferService")
     else
         AvBufferService_pid=$(pgrep -f "AvBufferService")
     fi
 else
-    # Prompt user to start EmulateAVbufferService
-    if prompt_yes_no "Do you want to start EmulateAVbufferService?"; then
-        echo "Execute [EmulateAVbufferService]"
-        ${RUN_DIR}/EmulateAVbufferService &
+    # Prompt user to start MockAVbufferService
+    if prompt_yes_no "Do you want to start MockAVbufferService?"; then
+        echo "Execute [MockAVbufferService]"
+        ${RUN_DIR}/MockAVbufferService &
         AvBufferService_pid=$!
         # Wait for service to be ready
         sleep 2
     else
         # Prompt user to start AvBufferService
         if prompt_yes_no "Do you want to start AvBufferService instead?"; then
-            echo "Execute [AvBufferService]"
-            AvBufferService &
+            echo "Execute [RDKAVBufferService]"
+            RDKAVBufferService &
             AvBufferService_pid=$!
             # Wait for service to be ready
             sleep 2
