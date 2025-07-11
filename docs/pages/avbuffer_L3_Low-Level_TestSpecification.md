@@ -200,3 +200,5 @@ The L3 tests validate the functional correctness and performance of the AvBuffer
 |48|con_sec_videopool_notify|runTest()|isAudio = false<br>concurrentMode=true|NA|
 |49|con_sec_videopool_readwrite|runTest()|isAudio = false<br>concurrentMode=true|NA|
 |50|con_sec_videopool_sha1|runTest()|isAudio = false<br>concurrentMode=true|NA|
+
+NB: The current release notify tests are not supported. Recommended to disable the tests from menu. There cold be crash/unexpected behavior if notify tests are enabled.

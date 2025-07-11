@@ -49,10 +49,16 @@ export AIDL_BIN=/path/linux_binder_idl/out/aidl
 export LINUX_BINDER_OUT_DIR=/path//linux_binder_idl/local/
 ```
 
+By default, UT logs are Enabled. To disable them, Set below environment variable
+
+```bash
+export DISABLE_UT_INFO_LOGGING=1
+```
+
 Run the build script:
 
 ```bash
-./build.sh
+./build.sh all
 ```
 
 The build.sh script:
@@ -68,7 +74,7 @@ Example directory structure :
 ```bash
 build/bin/
 ├── aidl
-├── EmulateAVbufferService
+├── MockAVbufferService
 ├── lib
 ├── libaudiodecoderaidl.so
 ├── libavbufferaidl.so
@@ -76,6 +82,7 @@ build/bin/
 ├── libbinder.so
 ├── libcutils.so
 ├── libcutils_sockets.so
+├── libhal_logger.so
 ├── liblog.so
 ├── libut_control.so
 ├── libutils.so
@@ -121,4 +128,16 @@ Execute the run.sh script as root:
 
 ```bash
 sudo ./run.sh -p profiles/hfp-avbuffer.yaml
+```
+
+To run the binary with two processes simultaneously:
+
+Open two separate SSH sessions to the target device. In each session, navigate to the `bin` directory  and execute one of the following commands:
+
+```bash
+sudo  ./run.sh -p profiles/hfp-audiodecoder_vdevice_instance_1.yaml
+```
+
+```bash
+sudo ./run.sh -p profiles/hfp-audiodecoder_vdevice_instance_2.yaml
 ```
