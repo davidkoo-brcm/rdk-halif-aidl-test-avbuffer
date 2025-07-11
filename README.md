@@ -129,15 +129,3 @@ Execute the run.sh script as root:
 ```bash
 sudo ./run.sh -p profiles/hfp-avbuffer.yaml
 ```
-
-To run the binary with two processes simultaneously:
-
-Open two separate SSH sessions to the target device. In each session, navigate to the `bin` directory  and execute one of the following commands:
-
-```bash
-sudo  ./run.sh -p profiles/hfp-avbuffer_vdevice.yaml
-```
-
-```bash
-sudo ./run.sh -p profiles/hfp-avbuffer_vdevice.yaml
-```
