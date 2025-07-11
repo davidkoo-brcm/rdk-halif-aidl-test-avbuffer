@@ -86,7 +86,7 @@ build/bin/
 ├── liblog.so
 ├── libut_control.so
 ├── libutils.so
-├── libvideodecoderaidl.so
+    ├── libvideodecoderaidl.so
 ├── profiles
 │   └── hfp-avbuffer.yaml
 ├── run.sh
@@ -135,9 +135,9 @@ To run the binary with two processes simultaneously:
 Open two separate SSH sessions to the target device. In each session, navigate to the `bin` directory  and execute one of the following commands:
 
 ```bash
-sudo  ./run.sh -p profiles/hfp-audiodecoder_vdevice_instance_1.yaml
+sudo  ./run.sh -p profiles/hfp-avbuffer_vdevice.yaml
 ```
 
 ```bash
-sudo ./run.sh -p profiles/hfp-audiodecoder_vdevice_instance_2.yaml
+sudo ./run.sh -p profiles/hfp-avbuffer_vdevice.yaml
 ```
