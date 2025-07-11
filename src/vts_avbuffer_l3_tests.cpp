@@ -170,19 +170,13 @@ public:
 
     ::android::binder::Status onSpaceAvailable() override
     {
-        std::lock_guard<std::mutex> lock(mMutex);
         this->isSpaceAvailable = true;
-        mCV.notify_all(); // Unblock any waiting test code
         return ::android::binder::Status::ok();
     }
 
-    bool getIsSpaceAvailable(std::chrono::milliseconds timeout)
+    bool getIsSpaceAvailable()
     {
-        UT_LOG_INFO("In getIsSpaceAvailable");
-        std::unique_lock<std::mutex> lock(mMutex);
-        return mCV.wait_for(lock, timeout, [this]() {
-                return this->isSpaceAvailable;
-            });
+        return this->isSpaceAvailable;
     }
 };
 
@@ -311,7 +305,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             }
             if(testConfig & NOTIFY_TEST)
             {
-                isSpaceAvailable = listener->getIsSpaceAvailable(std::chrono::milliseconds(MAX_FINAL_WAIT_MS));
+                isSpaceAvailable = listener->getIsSpaceAvailable();
                 UT_ASSERT_TRUE(isSpaceAvailable);
             }
             if(testConfig & READWRITE_TEST )
