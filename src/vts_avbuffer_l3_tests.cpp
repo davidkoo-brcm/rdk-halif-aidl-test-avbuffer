@@ -81,6 +81,13 @@ using namespace com::rdk::hal::audiodecoder;
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
+#define SECUREHEAP_TEST 0x01
+#define ALLOCATE_TEST 0x02
+#define NOTIFY_TEST 0x04
+#define TRIM_TEST 0x08
+#define READWRITE_TEST 0x10
+#define SHA1_TEST 0x20
+
 uint8_t standard_data[256] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -186,7 +193,7 @@ static std::vector<Pool> sPoolsCreated;
 static sp<IVideoDecoderManager> sVideoDecoderManager;
 static IAVBufferHelper* sAVbufferHelper;
 
-static bool sSecureHeap;
+
 static bool sAllocateTest;
 static bool sNotifyTest;
 static bool sTrimTest;
@@ -199,7 +206,7 @@ UT_status_t vts_audiodecoder_getService()
 {
     sAudioDecoderManager = android::interface_cast<IAudioDecoderManager>(
             defaultServiceManager()->getService(String16(IAudioDecoderManager::serviceName().c_str())));
-    if (sAudioDecoderManager == nullptr)
+    if (sAudioDecoderManager == NULL)
     {
         return UT_STATUS_FAILURE;
     }
@@ -214,7 +221,7 @@ UT_status_t vts_videodecoder_getService()
                 android::String16(IVideoDecoderManager::serviceName().c_str())
             )
         );
-    if (sVideoDecoderManager == nullptr)
+    if (sVideoDecoderManager == NULL)
     {
         return UT_STATUS_FAILURE;
     }
@@ -239,150 +246,89 @@ class VTS_L3_AVBuffer : public virtual UTCore
         {
         }
     public:
-        void createAudioPool(IAudioDecoder::Id _decoderId)
+        void AvBufferTest(IAudioDecoder::Id _audioDecoderId,IVideoDecoder::Id _videoDecoderId, uint8_t testConfig)
         {
-            Pool audioPool;
+            Pool pool;
             bool isValidResult = false;
             bool isSpaceAvailable = false;
-            int64_t audioBufferHandle;
+            bool secureHeap = false;
+            int64_t bufferHandle;
             void* mapBuffer =  NULL;
             uint32_t mapSize = 0;
             uint8_t read_data[256] = {0};
             std::vector<uint8_t> sha1Result;
             sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
+            if(testConfig && SECUREHEAP_TEST)
+            {
+                secureHeap = true;
+            }
 
-            AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, sSecureHeap, _decoderId, listener, audioPool);
-            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,audioPool,sPoolMetrics);
+            if(_videoDecoderId.value == IVideoDecoder::Id::UNDEFINED){
+                AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _audioDecoderId, listener, pool);
+            }
+            else
+            {
+                AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, _videoDecoderId, listener, pool);
+            }
+
+
+
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,pool,sPoolMetrics);
             UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
             UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
 
-            if(sAllocateTest){
-                if(sNotifyTest)
-                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)),audioBufferHandle);
-                else
-                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,audioPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/sAudioDecoderIds.size()),audioBufferHandle);
-                AVBUFFER_ISVALID_SUCCESS(gAVBufferManager,audioBufferHandle, isValidResult);
+            if( testConfig && ALLOCATE_TEST){
+                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,pool,(1024+(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)),bufferHandle);
+                AVBUFFER_ISVALID_SUCCESS(gAVBufferManager,bufferHandle, isValidResult);
                 UT_ASSERT_TRUE(isValidResult);
             }
-            if(sNotifyTest){
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,audioPool,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sAudioDecoderIds.size()));
+            if(testConfig && NOTIFY_TEST){
+                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,pool,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/2);
             }
-            if(sTrimTest || sNotifyTest){
-                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sAudioDecoderIds.size()));
+            if((testConfig && TRIM_TEST) || (testConfig && NOTIFY_TEST)){
+                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,bufferHandle,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/2);
             }
-            if(sNotifyTest)
+            if(testConfig && NOTIFY_TEST)
             {
                 isSpaceAvailable = false;
                 AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,listener,isSpaceAvailable);
                 UT_ASSERT_TRUE(isSpaceAvailable);
             }
-            if(sReadWriteTest)
+            if(testConfig && READWRITE_TEST )
             {
-                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,audioBufferHandle,sizeof(standard_data));
-                if(sSecureHeap){
-                    if(!sAVbufferHelper->writeSecureHandle(audioBufferHandle, standard_data, sizeof(standard_data)))
+                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,bufferHandle,sizeof(standard_data));
+                if(secureHeap){
+                    if(!sAVbufferHelper->writeSecureHandle(bufferHandle, standard_data, sizeof(standard_data)))
                     {
                         UT_LOG_ERROR("Failed to copy the data to secure buffer");
                     }
                 }
                 else
                 {
-                    mapBuffer = sAVbufferHelper->mapHandle(audioBufferHandle, &mapSize);
+                    mapBuffer = sAVbufferHelper->mapHandle(bufferHandle, &mapSize);
                     if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
                         memcpy(mapBuffer, standard_data, sizeof(standard_data));
                         memcpy(read_data,(void *)mapBuffer,sizeof(read_data));
                         UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
-                        sAVbufferHelper->unmapHandle(audioBufferHandle);
+                        sAVbufferHelper->unmapHandle(bufferHandle);
                     }else {
                         UT_LOG_ERROR("Failed to copy the data to secure buffer");
                     }
                 }
 
             }
-            if(sSHA1Test)
+            if(testConfig && SHA1_TEST)
             {
-                AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager,audioBufferHandle,sha1Result);
+                AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager,bufferHandle,sha1Result);
                 for(int i = 0; i< 20; i++)
                 {
                     UT_ASSERT_EQUAL(sha1Result[i], standard_data_sha1[i]);
                 }
             }
 
-            sPoolsCreated.emplace_back(audioPool);
+            sPoolsCreated.emplace_back(pool);
             sSpaceListeners.emplace_back(listener);
-            sBufferHandles.push_back(audioBufferHandle);
-        }
-        void createVideoPool(IVideoDecoder::Id _decoderId)
-        {
-            Pool videoPool;
-            bool isValidResult = false;
-            bool isSpaceAvailable = false;
-            int64_t videoBufferHandle;
-            uint8_t read_data[256] = {0};
-            void* mapBuffer =  NULL;
-            uint32_t mapSize = 0;
-            std::vector<uint8_t> sha1Result;
-            sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
-
-            AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, sSecureHeap, _decoderId, listener, videoPool);
-            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,videoPool,sPoolMetrics);
-            UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
-            UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
-            if(sAllocateTest){
-                if(sNotifyTest)
-                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,videoPool,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed),videoBufferHandle);
-                else
-                    AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,videoPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/sVideoDecoderIds.size()),videoBufferHandle);
-                AVBUFFER_ISVALID_SUCCESS(gAVBufferManager,videoBufferHandle, isValidResult);
-                UT_ASSERT_TRUE(isValidResult);
-            }
-            if(sNotifyTest){
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,videoPool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sVideoDecoderIds.size())));
-            }
-            if(sTrimTest || sNotifyTest){
-                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,videoBufferHandle,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/(2*sVideoDecoderIds.size())));
-            }
-            if(sNotifyTest)
-            {
-                isSpaceAvailable = false;
-                AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,listener,isSpaceAvailable);
-                UT_ASSERT_TRUE(isSpaceAvailable);
-            }
-            if(sReadWriteTest)
-            {
-                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,videoBufferHandle,256);
-                if(sSecureHeap){
-                    if(!sAVbufferHelper->writeSecureHandle(videoBufferHandle, standard_data, sizeof(standard_data)))
-                    {
-                        UT_LOG_ERROR("Failed to copy the data to secure buffer");
-                    }
-                }
-                else
-                {
-                    mapBuffer = sAVbufferHelper->mapHandle(videoBufferHandle, &mapSize);
-                    if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
-                        memcpy(mapBuffer, standard_data, sizeof(standard_data));
-                        memcpy(read_data,(void *)mapBuffer,sizeof(read_data));
-                        UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
-                        sAVbufferHelper->unmapHandle(videoBufferHandle);
-                    }else {
-                        UT_LOG_ERROR("Failed to copy the data to secure buffer");
-                    }
-                }
-
-            }
-            if(sSHA1Test)
-            {
-                AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager,videoBufferHandle,sha1Result);
-                for(int i = 0; i< 20; i++)
-                {
-                    UT_ASSERT_EQUAL(sha1Result[i], standard_data_sha1[i]);
-                }
-            }
-
-            sPoolsCreated.emplace_back(videoPool);
-            sSpaceListeners.emplace_back(listener);
-            sBufferHandles.push_back(videoBufferHandle);
+            sBufferHandles.push_back(bufferHandle);
         }
         void destroyPools()
         {
@@ -416,6 +362,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
  * **Dependencies:** None@n
  * **User Interaction:** None@n
  * @n
+ *
  * **Test Procedure:**@n
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
@@ -428,16 +375,13 @@ class VTS_L3_AVBuffer : public virtual UTCore
  */
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool)
 {
-    sSecureHeap = false;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = 0x00;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 
@@ -445,108 +389,91 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopoolpcm)
 {
-    sSecureHeap = false;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = 0x00;
     IAudioDecoder::Id _decoderId;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     _decoderId.value = IAudioDecoder::Id::UNDEFINED;
-    this->createAudioPool(_decoderId);
+
+    this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     this->destroyPools();
 
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_alloc)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_trim)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_notify)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST| NOTIFY_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_readwrite)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST| READWRITE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_sha1)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST |SHA1_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool)
 {
-    sSecureHeap = true;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 
@@ -554,110 +481,93 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopoolpcm)
 {
-    sSecureHeap = true;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST;
     IAudioDecoder::Id _decoderId;
     _decoderId.value = IAudioDecoder::Id::UNDEFINED;
-    this->createAudioPool(_decoderId);
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
+
+    this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     this->destroyPools();
 
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_alloc)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_trim)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | TRIM_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_notify)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | NOTIFY_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_readwrite)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_sha1)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        this->createAudioPool(_decoderId);
+        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool)
 {
-    sSecureHeap = false;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = 0x00;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -672,18 +582,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_alloc)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -697,18 +604,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_alloc)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_trim)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -722,18 +626,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_trim)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_notify)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | NOTIFY_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -747,18 +648,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_notify)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_readwrite)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -772,18 +670,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_readwrite)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_sha1)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -797,18 +692,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_sha1)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool)
 {
-    sSecureHeap = true;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -822,18 +714,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_alloc)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -847,18 +736,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_alloc)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_trim)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | TRIM_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -872,18 +758,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_trim)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_notify)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | NOTIFY_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -897,18 +780,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_notify)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_readwrite)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | READWRITE_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -922,18 +802,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_readwrite)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_sha1)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IVideoDecoder::Id _videoDecoderId;
+    _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sAudioDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createAudioPool(_decoderId);
+        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -947,16 +824,13 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_sha1)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool)
 {
-    sSecureHeap = false;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = 0x00;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 
@@ -965,93 +839,78 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_alloc)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_trim)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST ;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_notify)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | NOTIFY_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_readwrite)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_sha1)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool)
 {
-    sSecureHeap = true;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 
@@ -1059,95 +918,80 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_alloc)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_trim)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | TRIM_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_notify)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | NOTIFY_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_readwrite)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_sha1)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        this->createVideoPool(_decoderId);
+        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
     this->destroyPools();
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool)
 {
-    sSecureHeap = false;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = 0x00;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1162,18 +1006,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_alloc)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1187,18 +1028,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_alloc)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_trim)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1212,18 +1050,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_trim)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_notify)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | NOTIFY_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1237,18 +1072,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_notify)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_readwrite)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1262,18 +1094,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_readwrite)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_sha1)
 {
-    sSecureHeap = false;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1287,18 +1116,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_sha1)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool)
 {
-    sSecureHeap = true;
-    sAllocateTest = false;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1312,18 +1138,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_alloc)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1337,18 +1160,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_alloc)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_trim)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = true;
-    sNotifyTest = false;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | TRIM_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1362,18 +1182,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_trim)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_notify)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = true;
-    sReadWriteTest = false;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | NOTIFY_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1387,18 +1204,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_notify)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_readwrite)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = false;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
@@ -1412,18 +1226,15 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_readwrite)
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_sha1)
 {
-    sSecureHeap = true;
-    sAllocateTest = true;
-    sTrimTest = false;
-    sNotifyTest = false;
-    sReadWriteTest = true;
-    sSHA1Test = true;
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    IAudioDecoder::Id _audioDecoderId;
+    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
     std::vector<std::thread> threads;
 
     for(const auto& _decoderId: sVideoDecoderIds)
     {
-        threads.emplace_back([this, _decoderId]() {
-            this->createVideoPool(_decoderId);
+        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
             });
     }
     for(auto& t : threads)
