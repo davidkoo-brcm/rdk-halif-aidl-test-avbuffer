@@ -30,6 +30,7 @@
 #include <utils/String16.h>
 #include <stdio.h>
 #include <vector>
+#include <mutex>
 #include <optional>
 #include <cstring>
 
@@ -159,6 +160,8 @@ class AVBufferSpaceListener : public BnAVBufferSpaceListener
 {
 private:
         bool isSpaceAvailable = false;
+        mutable std::mutex mMutex;
+        std::condition_variable mCV;
 
 public:
 
@@ -167,18 +170,19 @@ public:
 
     ::android::binder::Status onSpaceAvailable() override
     {
-        isSpaceAvailable = true;
+        std::lock_guard<std::mutex> lock(mMutex);
+        this->isSpaceAvailable = true;
+        mCV.notify_all(); // Unblock any waiting test code
         return ::android::binder::Status::ok();
     }
 
-    bool getIsSpaceAvailable()
+    bool getIsSpaceAvailable(std::chrono::milliseconds timeout)
     {
-        if(isSpaceAvailable)
-        {
-            isSpaceAvailable = false;
-            return true;
-        }
-        return false;
+        UT_LOG_INFO("In getIsSpaceAvailable");
+        std::unique_lock<std::mutex> lock(mMutex);
+        return mCV.wait_for(lock, timeout, [this]() {
+                return this->isSpaceAvailable;
+            });
     }
 };
 
@@ -307,8 +311,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             }
             if(testConfig & NOTIFY_TEST)
             {
-                isSpaceAvailable = false;
-                AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,listener,isSpaceAvailable);
+                isSpaceAvailable = listener->getIsSpaceAvailable(std::chrono::milliseconds(MAX_FINAL_WAIT_MS));
                 UT_ASSERT_TRUE(isSpaceAvailable);
             }
             if(testConfig & READWRITE_TEST )
@@ -334,10 +337,10 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
                         memcpy(read_data,(void *)mapBuffer,sizeof(read_data));
                         sAVbufferHelper->unmapHandle(bufferHandle);
-                        UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
                     }else {
                         UT_LOG_ERROR("Failed to copy the data from buffer");
                     }
+                    UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
                 }
 
             }
@@ -374,70 +377,71 @@ class VTS_L3_AVBuffer : public virtual UTCore
         }
 
         void runTest(bool isAudio,bool isConcurrent, uint8_t testConfig){
+            IVideoDecoder::Id _videoDecoderId;
+            _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
             if(isAudio)
             {
-                IVideoDecoder::Id _videoDecoderId;
-                _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
-                if(isAudio)
+                if(!isConcurrent)
                 {
-                    if(!isConcurrent)
+                    for(const auto& _decoderId: sAudioDecoderIds)
                     {
-                        for(const auto& _decoderId: sAudioDecoderIds)
-                        {
-                            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
-                        }
-                        this->destroyPools(testConfig);
+                        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
                     }
-                    else
-                    {
-                        std::vector<std::thread> threads;
-
-                        for(const auto& _decoderId: sAudioDecoderIds)
-                        {
-                            threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
-                            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
-                            });
-                        }
-                        for(auto& t : threads)
-                        {
-                            if(t.joinable())
-                            t.join();
-                        }
-                        this->destroyPools(testConfig);
-                        threads.clear();
-
-                    }
+                    this->destroyPools(testConfig);
                 }
                 else
                 {
-                    IAudioDecoder::Id _audioDecoderId;
-                    _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
-                    if(!isConcurrent){
+                    std::vector<std::thread> threads;
 
-                    }
-                    else
+                    for(const auto& _decoderId: sAudioDecoderIds)
                     {
-                        std::vector<std::thread> threads;
-
-                        for(const auto& _decoderId: sVideoDecoderIds)
-                        {
-                            threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
-                                this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
-                                });
-                        }
-                        for(auto& t : threads)
-                        {
-                            if(t.joinable())
-                                t.join();
-                        }
-                        this->destroyPools(testConfig);
-                        threads.clear();
-
+                        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+                        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
+                        });
                     }
+                    for(auto& t : threads)
+                    {
+                        if(t.joinable())
+                        t.join();
+                    }
+                    this->destroyPools(testConfig);
+                    threads.clear();
+
+                }
+            }
+            else
+            {
+                IAudioDecoder::Id _audioDecoderId;
+                _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+                if(!isConcurrent){
+                    for(const auto& _decoderId: sVideoDecoderIds)
+                    {
+                        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
+                    }
+                    this->destroyPools(testConfig);
+                }
+                else
+                {
+                    std::vector<std::thread> threads;
+
+                    for(const auto& _decoderId: sVideoDecoderIds)
+                    {
+                        threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
+                            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
+                            });
+                    }
+                    for(auto& t : threads)
+                    {
+                        if(t.joinable())
+                            t.join();
+                    }
+                    this->destroyPools(testConfig);
+                    threads.clear();
 
                 }
 
             }
+
         }
 };
 

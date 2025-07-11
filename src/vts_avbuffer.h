@@ -70,7 +70,7 @@
 #include <thread>
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
 
-#define MAX_WAIT_MS 100
+#define MAX_WAIT_MS 10
 #define MAX_FINAL_WAIT_MS 5000
 
 
@@ -374,15 +374,19 @@ do { \
         } \
     } while (0)
 
-#define AVBUFFER_WAIT_FOR_SPACEAVAILABLE(avBufferManager, listener, isSpaceAvailable) \
+    #define AVBUFFER_WAIT_FOR_SPACEAVAILABLE(avBufferManager, listener, isSpaceAvailable) \
     int32_t sleep_time = 0; \
-    do \
-    { \
-        std::this_thread::sleep_for(std::chrono::milliseconds(MAX_WAIT_MS)); \
-        sleep_time += MAX_WAIT_MS; \
-        /* Check the state of the decoder */ \
-        isSpaceAvailable = listener->getIsSpaceAvailable(); \
-    } while (sleep_time < MAX_FINAL_WAIT_MS && isSpaceAvailable != true);
+    do{\
+        do \
+        { \
+            UT_LOG_INFO("WAIT Started"); \
+            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_WAIT_MS)); \
+            sleep_time += MAX_WAIT_MS; \
+            /* Check the state of the decoder */ \
+            isSpaceAvailable = listener->getIsSpaceAvailable(sleep_time); \
+            UT_LOG_INFO("WAIT loop"); \
+        } while (sleep_time < MAX_FINAL_WAIT_MS && isSpaceAvailable != true);\
+    }while(0);
 
 
 
