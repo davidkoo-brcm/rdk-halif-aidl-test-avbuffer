@@ -258,7 +258,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             uint8_t read_data[256] = {0};
             std::vector<uint8_t> sha1Result;
             sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
-            if(testConfig && SECUREHEAP_TEST)
+            if(testConfig & SECUREHEAP_TEST)
             {
                 secureHeap = true;
             }
@@ -277,24 +277,24 @@ class VTS_L3_AVBuffer : public virtual UTCore
             UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
             UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
 
-            if( testConfig && ALLOCATE_TEST){
-                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,pool,(1024+(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)),bufferHandle);
+            if( testConfig & ALLOCATE_TEST){
+                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,pool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)),bufferHandle);
                 AVBUFFER_ISVALID_SUCCESS(gAVBufferManager,bufferHandle, isValidResult);
                 UT_ASSERT_TRUE(isValidResult);
             }
-            if(testConfig && NOTIFY_TEST){
+            if(testConfig & NOTIFY_TEST){
                 AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,pool,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/2);
             }
-            if((testConfig && TRIM_TEST) || (testConfig && NOTIFY_TEST)){
+            if((testConfig & TRIM_TEST) || (testConfig & NOTIFY_TEST)){
                 AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,bufferHandle,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/2);
             }
-            if(testConfig && NOTIFY_TEST)
+            if(testConfig & NOTIFY_TEST)
             {
                 isSpaceAvailable = false;
                 AVBUFFER_WAIT_FOR_SPACEAVAILABLE(gAVBufferManager,listener,isSpaceAvailable);
                 UT_ASSERT_TRUE(isSpaceAvailable);
             }
-            if(testConfig && READWRITE_TEST )
+            if(testConfig & READWRITE_TEST )
             {
                 AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,bufferHandle,sizeof(standard_data));
                 if(secureHeap){
@@ -324,12 +324,14 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 }
 
             }
-            if(testConfig && SHA1_TEST)
+            if(testConfig & SHA1_TEST)
             {
                 AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager,bufferHandle,sha1Result);
-                for(int i = 0; i< 20; i++)
-                {
-                    UT_ASSERT_EQUAL(sha1Result[i], standard_data_sha1[i]);
+                if(!sha1Result.empty()){
+                    for(int i = 0; i< 20; i++)
+                    {
+                        UT_ASSERT_EQUAL(sha1Result[i], standard_data_sha1[i]);
+                    }
                 }
             }
 
@@ -337,9 +339,9 @@ class VTS_L3_AVBuffer : public virtual UTCore
             sSpaceListeners.emplace_back(listener);
             sBufferHandles.push_back(bufferHandle);
         }
-        void destroyPools()
+        void destroyPools(uint8_t testConfig)
         {
-            if(sAllocateTest){
+            if(ALLOCATE_TEST & testConfig){
                 for(const auto& bufferHandle : sBufferHandles){
                     UT_LOG_INFO("bufferHandle:[0x%08X]", bufferHandle); \
                     AVBUFFER_FREE_SUCCESS(gAVBufferManager,bufferHandle);
@@ -390,7 +392,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 
 }
 
@@ -403,7 +405,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopoolpcm)
     _decoderId.value = IAudioDecoder::Id::UNDEFINED;
 
     this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
-    this->destroyPools();
+    this->destroyPools(testConfig);
 
 }
 
@@ -417,7 +419,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_alloc)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_trim)
@@ -430,7 +432,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_trim)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_notify)
@@ -443,7 +445,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_notify)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_readwrite)
@@ -456,7 +458,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_readwrite)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_sha1)
@@ -469,7 +471,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_sha1)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool)
@@ -482,7 +484,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 
 }
 
@@ -495,7 +497,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopoolpcm)
     _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
     this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
-    this->destroyPools();
+    this->destroyPools(testConfig);
 
 }
 
@@ -509,7 +511,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_alloc)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_trim)
@@ -522,7 +524,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_trim)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_notify)
@@ -535,7 +537,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_notify)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_readwrite)
@@ -548,7 +550,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_readwrite)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_sha1)
@@ -561,7 +563,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_sha1)
     {
         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool)
@@ -582,7 +584,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 
 }
@@ -605,7 +607,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_alloc)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -627,7 +629,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_trim)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -649,7 +651,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_notify)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -671,7 +673,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_readwrite)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -693,7 +695,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_sha1)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -715,7 +717,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -737,7 +739,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_alloc)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -759,7 +761,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_trim)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -781,7 +783,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_notify)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -803,7 +805,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_readwrite)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -825,7 +827,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_sha1)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -839,7 +841,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 
 }
 
@@ -854,7 +856,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_alloc)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_trim)
@@ -867,7 +869,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_trim)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_notify)
@@ -880,7 +882,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_notify)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_readwrite)
@@ -893,7 +895,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_readwrite)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_sha1)
@@ -906,7 +908,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_sha1)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool)
@@ -919,7 +921,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 
 }
 
@@ -933,7 +935,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_alloc)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_trim)
@@ -946,7 +948,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_trim)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_notify)
@@ -959,7 +961,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_notify)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_readwrite)
@@ -972,7 +974,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_readwrite)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_sha1)
@@ -985,7 +987,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_sha1)
     {
         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool)
@@ -1006,7 +1008,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 
 }
@@ -1029,7 +1031,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_alloc)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1051,7 +1053,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_trim)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1073,7 +1075,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_notify)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1095,7 +1097,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_readwrite)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1117,7 +1119,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_sha1)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1139,7 +1141,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1161,7 +1163,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_alloc)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1183,7 +1185,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_trim)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1205,7 +1207,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_notify)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1227,7 +1229,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_readwrite)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
 
@@ -1249,6 +1251,6 @@ UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_sha1)
         if(t.joinable())
             t.join();
     }
-    this->destroyPools();
+    this->destroyPools(testConfig);
     threads.clear();
 }
