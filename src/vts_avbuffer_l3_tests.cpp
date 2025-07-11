@@ -308,11 +308,18 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     mapBuffer = sAVbufferHelper->mapHandle(bufferHandle, &mapSize);
                     if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
                         memcpy(mapBuffer, standard_data, sizeof(standard_data));
-                        memcpy(read_data,(void *)mapBuffer,sizeof(read_data));
-                        UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
                         sAVbufferHelper->unmapHandle(bufferHandle);
+                        mapBuffer = NULL;
                     }else {
-                        UT_LOG_ERROR("Failed to copy the data to secure buffer");
+                        UT_LOG_ERROR("Failed to copy the data to buffer");
+                    }
+                    mapBuffer = sAVbufferHelper->mapHandle(bufferHandle, &mapSize);
+                    if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
+                        memcpy(read_data,(void *)mapBuffer,sizeof(read_data));
+                        sAVbufferHelper->unmapHandle(bufferHandle);
+                        UT_ASSERT_TRUE((memcmp(standard_data,read_data,sizeof(standard_data)) == 0));
+                    }else {
+                        UT_LOG_ERROR("Failed to copy the data from buffer");
                     }
                 }
 
