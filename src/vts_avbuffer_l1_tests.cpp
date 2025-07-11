@@ -49,6 +49,20 @@ using namespace com::rdk::hal::avbuffer;
 using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::audiodecoder;
 
+UT_ADD_TEST_TO_GROUP(VTS_L1_AVBuffer, UT_TESTS_L1)
+
+class AVBufferSpaceListener : public BnAVBufferSpaceListener
+{
+public:
+
+    AVBufferSpaceListener() {};
+    virtual ~AVBufferSpaceListener() = default;
+
+    Status onSpaceAvailable() override
+    {
+        return Status::ok();
+    }
+};
 /* Status::Exception */
 const static ut_control_keyStringMapping_t statusException_mapTable[] =
 {
@@ -92,19 +106,6 @@ UT_status_t vts_avbuffer_getService()
     return UT_STATUS_OK;
 }
 
-
-class AVBufferSpaceListener : public BnAVBufferSpaceListener
-{
-public:
-
-    AVBufferSpaceListener() {};
-    virtual ~AVBufferSpaceListener() = default;
-
-    Status onSpaceAvailable() override
-    {
-        return Status::ok();
-    }
-};
 
 class VTS_L1_AVBuffer : public virtual UTCore
 {

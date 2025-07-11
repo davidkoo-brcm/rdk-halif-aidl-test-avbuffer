@@ -19,11 +19,23 @@
 #*
 #* ******************************************************************************
 
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
 # Define the directory where the repository will be cloned
 declare -r TOP=`dirname $(realpath $0)`
-declare -r UT_CORE_DIR="${TOP}/ut/ut-core"
+declare -r UT_CORE_DIR="${TOP}/ut-core"
 declare -r BUILD_DIR="${TOP}/build"
 declare -r BUILD_INSTALL_PREFIX=${BUILD_DIR}/usr
+declare -r MOCK_SERVICE_DIR="${TOP}/mockservice"
+declare -r AIDL_LIB_DIR=${TOP}/aidl_lib
+declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
+declare -r INSTALL_PATH=${BUILD_DIR}/bin
 
 DEF_LINUX_BINDER="`realpath ${TOP}/../`/linux_binder_idl"
 # AIDL_BIN: path of aidl compiler
@@ -32,15 +44,17 @@ AIDL_BIN=${AIDL_BIN:-${DEF_LINUX_BINDER}/out/aidl}
 # contains bin/servicemanager, lib/libbinder etc
 LINUX_BINDER_OUT_DIR=${LINUX_BINDER_OUT_DIR:-${DEF_LINUX_BINDER}/local}
 
+# Used in build avbuffer_hal
+
 mkdir -p $BUILD_DIR
 
 if [ ! -x $AIDL_BIN ]; then
-	echo "AIDL_BIN: path does not exists, consdier building the linux_binder_idl in $DEF_LINUX_BINDER"
-	exit 1
+    echo "AIDL_BIN: path does not exists, consdier building the linux_binder_idl in $DEF_LINUX_BINDER"
+    exit 1
 fi
 if [ ! -d $LINUX_BINDER_OUT_DIR ]; then
-	echo "LINUX_BINDER_OUT_DIR: path does not exists, consider building the linux_binder_idl in $DEF_LINUX_BINDER"
-	exit 1
+    echo "LINUX_BINDER_OUT_DIR: path does not exists, consider building the linux_binder_idl in $DEF_LINUX_BINDER"
+    exit 1
 fi
 
 # Turning them into absolute path because we may calling change current working directory
@@ -51,11 +65,11 @@ RDK_HALIF_AIDL_VERSION="${RDK_HALIF_AIDL_VERSION="main"}"
 
 install_linux_binder()
 {
-	echo "Install linux-binder \`service manager, headers and libraries'"
-	install -d ${BUILD_INSTALL_PREFIX}/bin ${BUILD_INSTALL_PREFIX}/lib ${BUILD_INSTALL_PREFIX}/include
-	install -t ${BUILD_INSTALL_PREFIX}/bin ${LINUX_BINDER_OUT_DIR}/bin/*
-	install -t ${BUILD_INSTALL_PREFIX}/lib ${LINUX_BINDER_OUT_DIR}/lib/*
-	cp -apr ${LINUX_BINDER_OUT_DIR}/include/* ${BUILD_INSTALL_PREFIX}/include/
+    echo "Install linux-binder \`service manager, headers and libraries'"
+    install -d ${BUILD_INSTALL_PREFIX}/bin ${BUILD_INSTALL_PREFIX}/lib ${BUILD_INSTALL_PREFIX}/include
+    install -t ${BUILD_INSTALL_PREFIX}/bin ${LINUX_BINDER_OUT_DIR}/bin/*
+    install -t ${BUILD_INSTALL_PREFIX}/lib ${LINUX_BINDER_OUT_DIR}/lib/*
+    cp -apr ${LINUX_BINDER_OUT_DIR}/include/* ${BUILD_INSTALL_PREFIX}/include/
 }
 
 
@@ -64,11 +78,9 @@ generate_avbuffer_hal()
     declare -r HAL_BUILD_DIR=${BUILD_DIR}/avbuffer_hal
     declare -r VERSION=current
     declare -r AIDL_GEN_DIR="${BUILD_DIR}/avbuffer_gen/$VERSION"
-    declare -r RDK_HAL_DIR=${TOP}/rdk-halif-aidl
 
     # Clone the repository if not already present
     if [ ! -d "$RDK_HAL_DIR" ]; then
-        echo "Checking out version: " $RDK_HALIF_AIDL_VERSION
         git clone -b $RDK_HALIF_AIDL_VERSION 'http://git@github.com/rdkcentral/rdk-halif-aidl.git' $RDK_HAL_DIR
     fi
 
@@ -81,14 +93,35 @@ generate_avbuffer_hal()
 	-B ${HAL_BUILD_DIR}/gen/build/${m}_test \
         $RDK_HAL_DIR
     done
-
 }
 
-
-build_vcomponent()
+generate_avbufferhelper_skeleton()
 {
+    declare -r AVBUFFER_HELPER_DIR=${MOCK_SERVICE_DIR}/avbufferhelper
+    mkdir -p $AVBUFFER_HELPER_DIR/build
+    cd $AVBUFFER_HELPER_DIR/build
+
+    cmake ..
+    make
+
+    cp libavbufferhelper.so ${BUILD_DIR}/usr/lib/
+    cd -
+    rm -rf $AVBUFFER_HELPER_DIR/build
+}
+
+build_aidl_libs()
+{
+    pushd ${AIDL_LIB_DIR}
+    make -j`nproc`
+    echo "AIDL Build completed successfully."
+    popd
+}
+
+build_mockservice()
+{
+    # Invoke Makefile to build the mock_service target
     make -j`nproc` \
-		-C ${TOP}/vcomponent
+        -C ${MOCK_SERVICE_DIR}
 }
 
 build_ut_core()
@@ -108,6 +141,7 @@ build_ut_core()
 	if [ -z "$UT_CORE_VERSION" ]; then
 		UT_CORE_VERSION=`git tag | sort -Vr | head -n1`
 	fi
+
 	git checkout $UT_CORE_VERSION
 
 	./build.sh TARGET=linux VARIANT=CPP
@@ -120,20 +154,84 @@ build_ut_core()
 	popd
 }
 
+build_hal_log()
+{
+    declare -r HAL_LOG_DIR="${TOP}/mockservice/hal_log"
+    pushd ${HAL_LOG_DIR}
+    make
+
+    cp -f ${HAL_LOG_DIR}/libhal_logger.so ${INSTALL_PATH}/
+    cp ${HAL_LOG_DIR}/libhal_logger.so ${BUILD_DIR}/usr/lib/
+    make clean
+    popd
+}
 install_test()
 {
-	declare -r INSTALL_PATH=${BUILD_DIR}/bin
-
 	install -t ${INSTALL_PATH} ${BUILD_INSTALL_PREFIX}/bin/*
 	install -t ${INSTALL_PATH} ${BUILD_INSTALL_PREFIX}/lib/*
 	install -t ${INSTALL_PATH} run.sh
-	cp -r ${TOP}/profiles/ ${INSTALL_PATH}
+	cp -rf ${TOP}/profiles ${INSTALL_PATH}
 }
 
-install_linux_binder
-generate_avbuffer_hal
-build_vcomponent
-build_ut_core
-# Building test module using ut-core framework
-make -j`nproc` -C ${TOP}
-install_test
+dist_clean_test()
+{
+    rm -rf $BUILD_DIR
+    rm -rf src/*.o
+    rm -rf ${MOCK_SERVICE_DIR}/src/*.o
+    rm -rf $RDK_HAL_DIR
+    rm -rf ${UT_CORE_DIR}
+    echo -e "${BOLD}${GREEN}distclean Completed.....${RESET}"
+}
+
+clean_test()
+{
+    rm -rf $BUILD_DIR
+    rm -rf src/*.o
+    rm -rf ${MOCK_SERVICE_DIR}/src/*.o
+    echo -e "${BOLD}${GREEN}Clean Completed.....${RESET}"
+}
+
+help()
+{
+    echo -e "${BOLD}${CYAN}Usage:${RESET}"
+
+    echo -e "${BOLD}╔════════════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 all${RESET}            ${YELLOW}- Builds the test${RESET}                        ${BOLD}*${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 clean${RESET}          ${YELLOW}- Cleans the build folder${RESET}                ${BOLD}*${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 dist_clean${RESET}     ${YELLOW}- Deletes all build and checkout folders${RESET} ${BOLD}*${RESET}"
+    echo -e "${BOLD}* ${GREEN}$0 help/-h/--help${RESET} ${YELLOW}- Prints this message${RESET}                    ${BOLD}*${RESET}"
+    echo -e "${BOLD}╚════════════════════════════════════════════════════════════════════╝${RESET}"
+}
+
+echo -e "${BOLD}${GREEN}VTS Version            : ${RESET}${YELLOW}$(git rev-parse --abbrev-ref HEAD)${RESET}"
+echo -e "${BOLD}${GREEN}UT_CORE_VERSION        : ${RESET}${YELLOW}$UT_CORE_VERSION${RESET}"
+echo -e "${BOLD}${GREEN}RDK_HALIF_AIDL_VERSION : ${RESET}${YELLOW}$RDK_HALIF_AIDL_VERSION${RESET}"
+echo -e "${BOLD}${GREEN}AIDL_BIN               : ${RESET}${YELLOW}$AIDL_BIN${RESET}"
+echo -e "${BOLD}${GREEN}LINUX_BINDER_OUT_DIR   : ${RESET}${YELLOW}$LINUX_BINDER_OUT_DIR${RESET}"
+
+if [ "$1" == "clean" ]; then
+    clean_test
+elif [ "$1" == "dist_clean" ]; then
+    dist_clean_test
+elif [[ "$1" == "help" || "$1" == "--help" || "$1" == "-h" ]]; then
+    help
+elif [ "$1" == "all" ]; then
+    install_linux_binder
+    generate_avbuffer_hal
+    generate_avbufferhelper_skeleton
+    build_aidl_libs
+    build_mockservice
+    build_ut_core
+    build_hal_log
+	# Building test module using ut-core framework
+	make -j`nproc` -C ${TOP}
+	install_test
+    echo -e "${BOLD}${GREEN}Build Completed.....${RESET}"
+else
+    # Colors
+    RED='\033[0;31m'
+    BOLD='\033[1m'
+    RESET='\033[0m'
+    echo -e "${BOLD}${RED}Invalid Arguments${RESET}"
+    help
+fi
