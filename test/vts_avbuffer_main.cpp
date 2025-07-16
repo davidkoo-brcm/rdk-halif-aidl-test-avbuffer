@@ -63,7 +63,7 @@
 
 #include <ut.h>
 #include <ut_log.h>
-#include "vts_avbuffer_init.h"
+#include "vts_avbuffer.h"
 
 int main(int argc, char **argv)
 {

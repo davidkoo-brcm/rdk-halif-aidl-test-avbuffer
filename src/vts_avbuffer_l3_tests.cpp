@@ -18,31 +18,9 @@
  * limitations under the License.
  */
 
-#include <ut_kvp_profile.h>
-#include <ut.h>
-#include <ut_log.h>
-#include <ut_control_plane.h>
-#include <gtest/gtest.h>
-#include <binder/IServiceManager.h>
-#include <binder/ProcessState.h>
-#include <binder/IPCThreadState.h>
-#include <binder/Status.h>
-#include <utils/String16.h>
-#include <stdio.h>
-#include <vector>
-#include <mutex>
-#include <optional>
-#include <cstring>
 
-#include "com/rdk/hal/avbuffer/IAVBuffer.h"
-#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
-#include "com/rdk/hal/audiodecoder/BpAudioDecoderManager.h"
-#include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"
 
-#include "vts_avbuffer_init.h"
-#include "vts_avbuffer_parse_hfp.h"
 #include "vts_avbuffer.h"
-#include "IAVBufferHelper.h"
 
 #define MAX_DECODER_COUNT 5
 
@@ -127,33 +105,6 @@ const uint8_t standard_data_sha1[20] = {
     0x6b, 0x86, 0xb2, 0x0b, 0x85, 0xc5, 0x04, 0x03,
     0x14, 0x3e, 0x0a, 0x76, 0x51, 0xd1, 0xe6, 0x7a,
     0x2f, 0x0d, 0x29, 0x16
-};
-/* Status::Exception */
-const static ut_control_keyStringMapping_t statusException_mapTable[] =
-{
-    {"EX_NONE",                  (int32_t) Status::EX_NONE},
-    {"EX_SECURITY",              (int32_t) Status::EX_SECURITY},
-    {"EX_BAD_PARCELABLE",        (int32_t) Status::EX_BAD_PARCELABLE},
-    {"EX_ILLEGAL_ARGUMENT",      (int32_t) Status::EX_ILLEGAL_ARGUMENT},
-    {"EX_NULL_POINTER",          (int32_t) Status::EX_NULL_POINTER},
-    {"EX_ILLEGAL_STATE",         (int32_t) Status::EX_ILLEGAL_STATE},
-    {"EX_NETWORK_MAIN_THREAD",   (int32_t) Status::EX_NETWORK_MAIN_THREAD},
-    {"EX_UNSUPPORTED_OPERATION", (int32_t) Status::EX_UNSUPPORTED_OPERATION},
-    {"EX_SERVICE_SPECIFIC",      (int32_t) Status::EX_SERVICE_SPECIFIC},
-    {"EX_PARCELABLE",            (int32_t) Status::EX_PARCELABLE},
-    {"EX_HAS_REPLY_HEADER",      (int32_t) Status::EX_HAS_REPLY_HEADER},
-    {"EX_TRANSACTION_FAILED",    (int32_t) Status::EX_TRANSACTION_FAILED},
-    {NULL, -1}
-};
-
-
-
-/* bool */
-const static ut_control_keyStringMapping_t bool_mapTable[] =
-{
-    {"false", (int32_t) false},
-    {"true",  (int32_t) true},
-    {NULL, -1}
 };
 
 class AVBufferSpaceListener : public BnAVBufferSpaceListener

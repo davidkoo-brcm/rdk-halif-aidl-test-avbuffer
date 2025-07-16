@@ -68,11 +68,89 @@
 #include <binder/Status.h>
 #include <chrono>
 #include <thread>
+#include <stdio.h>
+#include <vector>
+#include <ut.h>
+#include <ut_kvp_profile.h>
+#include <ut_log.h>
+#include <ut_control_plane.h>
+#include <gtest/gtest.h>
+#include <binder/IServiceManager.h>
+#include <binder/ProcessState.h>
+#include <binder/IPCThreadState.h>
+#include <binder/Status.h>
+#include <utils/String16.h>
+#include <optional>
+#include <mutex>
+#include <cstring>
+
+#include "com/rdk/hal/avbuffer/IAVBuffer.h"
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
+#include "com/rdk/hal/audiodecoder/BpAudioDecoderManager.h"
+#include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"
+
+#include "IAVBufferHelper.h"
 
 #define MAX_WAIT_MS 10
 #define MAX_FINAL_WAIT_MS 5000
 
+using android::sp;
+using android::String16;
+using android::defaultServiceManager;
+using android::binder::Status;
+
+using namespace com::rdk::hal;
+using namespace com::rdk::hal::avbuffer;
+using namespace com::rdk::hal::videodecoder;
+using namespace com::rdk::hal::audiodecoder;
+
+
+struct avbuffer_info
+{
+    ::std::vector<int32_t> videoDecoderId;
+    ::std::vector<int32_t> audioDecoderId;
+    uint32_t nonSecureHeapBytes;
+    uint32_t secureHeapBytes;
+    bool supportSecure;
+};
+
+#define VIDEODECODER_PATH "IVideoDecoderManager.IVideoDecoder"
+#define AUDIODECODER_PATH "IAudioDecoderManager.IAudioDecoder"
+#define AVBUFFER_SECURESIZE_PATH "IAVBuffer.secureHeapBytes"
+#define AVBUFFER_NONSECURESIZE_PATH "IAVBuffer.nonSecureHeapBytes"
+
+extern avbuffer_info gAVBuffer_hfp;
+
+UT_status_t vts_avbuffer_parseAudioDecoderHFP();
+UT_status_t VTS_AVBuffer_init();
+
+/* Status::Exception */
+const static ut_control_keyStringMapping_t statusException_mapTable[] =
+{
+    {"EX_NONE",                  (int32_t) Status::EX_NONE},
+    {"EX_SECURITY",              (int32_t) Status::EX_SECURITY},
+    {"EX_BAD_PARCELABLE",        (int32_t) Status::EX_BAD_PARCELABLE},
+    {"EX_ILLEGAL_ARGUMENT",      (int32_t) Status::EX_ILLEGAL_ARGUMENT},
+    {"EX_NULL_POINTER",          (int32_t) Status::EX_NULL_POINTER},
+    {"EX_ILLEGAL_STATE",         (int32_t) Status::EX_ILLEGAL_STATE},
+    {"EX_NETWORK_MAIN_THREAD",   (int32_t) Status::EX_NETWORK_MAIN_THREAD},
+    {"EX_UNSUPPORTED_OPERATION", (int32_t) Status::EX_UNSUPPORTED_OPERATION},
+    {"EX_SERVICE_SPECIFIC",      (int32_t) Status::EX_SERVICE_SPECIFIC},
+    {"EX_PARCELABLE",            (int32_t) Status::EX_PARCELABLE},
+    {"EX_HAS_REPLY_HEADER",      (int32_t) Status::EX_HAS_REPLY_HEADER},
+    {"EX_TRANSACTION_FAILED",    (int32_t) Status::EX_TRANSACTION_FAILED},
+    {NULL, -1}
+};
+
+
+
+/* bool */
+const static ut_control_keyStringMapping_t bool_mapTable[] =
+{
+    {"false", (int32_t) false},
+    {"true",  (int32_t) true},
+    {NULL, -1}
+};
 
 #define AVBUFFER_GETMETRICS(avBufferManager, secureHeap, heapMetrics) \
     do { \

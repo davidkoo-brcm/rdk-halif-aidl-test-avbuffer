@@ -71,7 +71,7 @@
 #include <utils/String16.h>
 #include "com/rdk/hal/avbuffer/IAVBuffer.h"
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
-#include "vts_avbuffer_parse_hfp.h"
+#include "vts_avbuffer.h"
 
 using android::sp;
 using android::String16;
