@@ -120,6 +120,9 @@ struct avbuffer_info
 #define AVBUFFER_NONSECURESIZE_PATH "IAVBuffer.nonSecureHeapBytes"
 
 extern avbuffer_info gAVBuffer_hfp;
+void* vts_kvp_create_instance(char *fileName);
+void vts_kvp_destroy_instance(void *instance);
+sp<IAVBuffer> vts_getAVBufferService();
 
 UT_status_t vts_avbuffer_parseAudioDecoderHFP();
 UT_status_t VTS_AVBuffer_init();
@@ -197,7 +200,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool)", \
                     secureHeap, audioDecoderId.value, listener.get()); \
-        Status status = gAVBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
+        Status status = avBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
         UT_LOG_INFO("Result createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -210,7 +213,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool)", \
                     secureHeap, audioDecoderId.value, listener.get()); \
-        Status status = gAVBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
+        Status status = avBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
         UT_LOG_INFO("Result createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -222,7 +225,7 @@ do { \
     do { \
         bool _aidl_return = false; \
         Status status; \
-        UT_LOG_INFO("Calling destroyPool(IN:poolHandle:[%d], OUT:_aidl_return:[])", pool.handle); \
+        UT_LOG_INFO("Calling destroyPool(IN:poolHandle:[%d], OUT:_aidl_return:[])", pool); \
         status = avBufferManager->destroyPool(pool, &_aidl_return); \
         UT_LOG_INFO("Result destroyPool with (IN:poolHandle:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     pool.handle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
@@ -284,7 +287,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
-        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%08X]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%X]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -306,9 +309,9 @@ do { \
 #define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%08X], OUT:_aidl_return)", bufferHandle); \
+        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%X], OUT:_aidl_return)", bufferHandle); \
         Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%08X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -452,7 +455,7 @@ do { \
         } \
     } while (0)
 
-    #define AVBUFFER_WAIT_FOR_SPACEAVAILABLE(avBufferManager, listener, isSpaceAvailable) \
+#define AVBUFFER_WAIT_FOR_SPACEAVAILABLE(avBufferManager, listener, isSpaceAvailable) \
     int32_t sleep_time = 0; \
     do{\
         do \
@@ -466,7 +469,31 @@ do { \
         } while (sleep_time < MAX_FINAL_WAIT_MS && isSpaceAvailable != true);\
     }while(0);
 
+#define AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_INFO("Calling getAudioDecoderIds(OUT:decoderIds:[])"); \
+        status = sAudioDecoderManager->getAudioDecoderIds(&decoderIds); \
+        UT_LOG_INFO("Result getAudioDecoderIds(OUT:decoderIds:[size: %d]), status:[isOK:%s, exception:%s]", \
+                                decoderIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_FALSE(decoderIds.empty()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
 
+#define VIDEODECODER_MANAGER_GETVIDEODECODERIDS(decoderIds) \
+    do { \
+        ::android::binder::Status status; \
+        UT_LOG_INFO("Calling getVideoDecoderIds(OUT:decoderIds:[])"); \
+        status = sVideoDecoderManager->getVideoDecoderIds(&decoderIds); \
+        UT_LOG_INFO("Result getVideoDecoderIds(OUT:decoderIds:[size: %d]), status:[isOK:%s, exception:%s]", \
+                                decoderIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_FALSE(decoderIds.empty()); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
 
 #endif //__VTS_AVBUFFER_H__
 

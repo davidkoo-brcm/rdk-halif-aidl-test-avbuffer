@@ -39,7 +39,7 @@ public:
 
 extern sp<IAVBuffer> gAVBufferManager;
 
-UT_status_t vts_avbuffer_getService()
+UT_status_t getAVBufferService()
 {
     gAVBufferManager =
         android::interface_cast<IAVBuffer>(

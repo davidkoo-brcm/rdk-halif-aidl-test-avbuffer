@@ -71,6 +71,7 @@
 #include <utils/String16.h>
 #include "com/rdk/hal/avbuffer/IAVBuffer.h"
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
+
 #include "vts_avbuffer.h"
 
 using android::sp;
@@ -83,12 +84,22 @@ using namespace com::rdk::hal::avbuffer;
 using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::audiodecoder;
 
-UT_status_t vts_avbuffer_getService();
+UT_status_t getAVBufferService();
 sp<IAVBuffer> gAVBufferManager;
+
+sp<IAVBuffer> vts_getAVBufferService()
+{
+    return
+        android::interface_cast<IAVBuffer>(
+            android::defaultServiceManager()->getService(
+                android::String16(IAVBuffer::serviceName().c_str())
+            )
+        );
+}
 
 UT_status_t VTS_AVBuffer_init()
 {
-    if(vts_avbuffer_getService() != UT_STATUS_OK)
+    if(getAVBufferService() != UT_STATUS_OK)
     {
         return UT_STATUS_FAILURE;
     }

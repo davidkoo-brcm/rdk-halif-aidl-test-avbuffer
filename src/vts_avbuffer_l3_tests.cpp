@@ -34,32 +34,6 @@ using namespace com::rdk::hal::avbuffer;
 using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::audiodecoder;
 
-#define AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds) \
-    do { \
-        ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getAudioDecoderIds(OUT:decoderIds:[])"); \
-        status = sAudioDecoderManager->getAudioDecoderIds(&decoderIds); \
-        UT_LOG_INFO("Result getAudioDecoderIds(OUT:decoderIds:[size: %d]), status:[isOK:%s, exception:%s]", \
-                                decoderIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_FALSE(decoderIds.empty()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
-#define VIDEODECODER_MANAGER_GETVIDEODECODERIDS(decoderIds) \
-    do { \
-        ::android::binder::Status status; \
-        UT_LOG_INFO("Calling getVideoDecoderIds(OUT:decoderIds:[])"); \
-        status = sVideoDecoderManager->getVideoDecoderIds(&decoderIds); \
-        UT_LOG_INFO("Result getVideoDecoderIds(OUT:decoderIds:[size: %d]), status:[isOK:%s, exception:%s]", \
-                                decoderIds.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                                UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_FALSE(decoderIds.empty()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-    } while (0)
-
 #define SECUREHEAP_TEST 0x01
 #define ALLOCATE_TEST 0x02
 #define NOTIFY_TEST 0x04
