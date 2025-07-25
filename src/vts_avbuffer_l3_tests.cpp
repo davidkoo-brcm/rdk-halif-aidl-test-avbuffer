@@ -18,43 +18,14 @@
  * limitations under the License.
  */
 
-#include <ut_kvp_profile.h>
-#include <ut.h>
-#include <ut_log.h>
-#include <ut_control_plane.h>
-#include <gtest/gtest.h>
-#include <binder/IServiceManager.h>
-#include <binder/ProcessState.h>
-#include <binder/IPCThreadState.h>
-#include <binder/Status.h>
-#include <utils/String16.h>
-#include <stdio.h>
-#include <vector>
-#include <mutex>
-#include <optional>
-#include <cstring>
-
-#include "com/rdk/hal/avbuffer/IAVBuffer.h"
-#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
-#include "com/rdk/hal/audiodecoder/BpAudioDecoderManager.h"
-#include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"
-
-#include "vts_avbuffer_init.h"
 #include "vts_avbuffer_parse_hfp.h"
 #include "vts_avbuffer.h"
 #include "IAVBufferHelper.h"
 
+#include "com/rdk/hal/audiodecoder/BpAudioDecoderManager.h"
+#include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"
+
 #define MAX_DECODER_COUNT 5
-
-using android::sp;
-using android::String16;
-using android::defaultServiceManager;
-using android::binder::Status;
-
-using namespace com::rdk::hal;
-using namespace com::rdk::hal::avbuffer;
-using namespace com::rdk::hal::videodecoder;
-using namespace com::rdk::hal::audiodecoder;
 
 #define AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds) \
     do { \
