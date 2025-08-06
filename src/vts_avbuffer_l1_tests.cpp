@@ -18,36 +18,8 @@
  * limitations under the License.
  */
 
-#include <ut_kvp_profile.h>
-#include <ut.h>
-#include <ut_log.h>
-#include <ut_control_plane.h>
-#include <gtest/gtest.h>
-#include <binder/IServiceManager.h>
-#include <binder/ProcessState.h>
-#include <binder/IPCThreadState.h>
-#include <binder/Status.h>
-#include <utils/String16.h>
-#include <stdio.h>
-#include <vector>
-#include <optional>
-
-#include "com/rdk/hal/avbuffer/IAVBuffer.h"
-#include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
-
-#include "vts_avbuffer_init.h"
 #include "vts_avbuffer.h"
 #include "vts_avbuffer_parse_hfp.h"
-
-using android::sp;
-using android::String16;
-using android::defaultServiceManager;
-using android::binder::Status;
-
-using namespace com::rdk::hal;
-using namespace com::rdk::hal::avbuffer;
-using namespace com::rdk::hal::videodecoder;
-using namespace com::rdk::hal::audiodecoder;
 
 UT_ADD_TEST_TO_GROUP(VTS_L1_AVBuffer, UT_TESTS_L1)
 
@@ -90,22 +62,6 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 };
 
 extern sp<IAVBuffer> gAVBufferManager;
-
-UT_status_t vts_avbuffer_getService()
-{
-    gAVBufferManager =
-        android::interface_cast<IAVBuffer>(
-            android::defaultServiceManager()->getService(
-                android::String16(IAVBuffer::serviceName().c_str())
-            )
-        );
-    if (gAVBufferManager == nullptr)
-    {
-        return UT_STATUS_FAILURE;
-    }
-    return UT_STATUS_OK;
-}
-
 
 class VTS_L1_AVBuffer : public virtual UTCore
 {
