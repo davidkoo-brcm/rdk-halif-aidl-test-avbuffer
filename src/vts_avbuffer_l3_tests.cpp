@@ -351,8 +351,8 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     for(const auto& _decoderId: sAudioDecoderIds)
                     {
                         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
+                        this->destroyPools(testConfig);
                     }
-                    this->destroyPools(testConfig);
                 }
                 else
                 {
@@ -382,8 +382,8 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     for(const auto& _decoderId: sVideoDecoderIds)
                     {
                         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
+                        this->destroyPools(testConfig);
                     }
-                    this->destroyPools(testConfig);
                 }
                 else
                 {
