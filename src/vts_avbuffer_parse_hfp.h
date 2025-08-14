@@ -72,21 +72,21 @@
 #include <ut_kvp_profile.h>
 #include <ut_log.h>
 
-struct avbuffer
+typedef struct avbuffer
 {
     ::std::vector<int32_t> videoDecoderId;
     ::std::vector<int32_t> audioDecoderId;
     uint32_t nonSecureHeapBytes;
     uint32_t secureHeapBytes;
     bool supportSecure;
-};
+}avbuffer_t;
 
 #define VIDEODECODER_PATH "IVideoDecoderManager.IVideoDecoder"
 #define AUDIODECODER_PATH "IAudioDecoderManager.IAudioDecoder"
 #define AVBUFFER_SECURESIZE_PATH "IAVBuffer.secureHeapBytes"
 #define AVBUFFER_NONSECURESIZE_PATH "IAVBuffer.nonSecureHeapBytes"
 
-extern avbuffer gAVBuffer_hfp;
+extern avbuffer_t gAVBuffer_hfp;
 
 UT_status_t vts_avbuffer_parseAudioDecoderHFP();
 

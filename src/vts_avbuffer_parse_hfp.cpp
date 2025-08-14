@@ -64,7 +64,7 @@
 
 #include "vts_avbuffer_parse_hfp.h"
 
-avbuffer gAVBuffer_hfp;
+avbuffer_t gAVBuffer_hfp;
 
 UT_status_t vts_avbuffer_parseAudioDecoderHFP()
 {

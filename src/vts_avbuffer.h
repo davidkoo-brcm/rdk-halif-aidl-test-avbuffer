@@ -65,14 +65,41 @@
 #ifndef __VTS_AVBUFFER_H__
 #define __VTS_AVBUFFER_H__
 
-#include <binder/Status.h>
+#include <stdio.h>
+#include <vector>
+#include <optional>
 #include <chrono>
 #include <thread>
+#include <stdio.h>
+#include <mutex>
+#include <cstring>
+
+#include <ut_kvp_profile.h>
+#include <ut.h>
+#include <ut_log.h>
+#include <ut_control_plane.h>
+#include <gtest/gtest.h>
+#include <binder/IServiceManager.h>
+#include <binder/ProcessState.h>
+#include <binder/IPCThreadState.h>
+#include <binder/Status.h>
+#include <utils/String16.h>
+
+#include "com/rdk/hal/avbuffer/IAVBuffer.h"
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
 
 #define MAX_WAIT_MS 10
 #define MAX_FINAL_WAIT_MS 5000
 
+using android::sp;
+using android::String16;
+using android::defaultServiceManager;
+using android::binder::Status;
+
+using namespace com::rdk::hal;
+using namespace com::rdk::hal::avbuffer;
+using namespace com::rdk::hal::videodecoder;
+using namespace com::rdk::hal::audiodecoder;
 
 #define AVBUFFER_GETMETRICS(avBufferManager, secureHeap, heapMetrics) \
     do { \
@@ -119,7 +146,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool)", \
                     secureHeap, audioDecoderId.value, listener.get()); \
-        Status status = gAVBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
+        Status status = avBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
         UT_LOG_INFO("Result createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -132,7 +159,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool)", \
                     secureHeap, audioDecoderId.value, listener.get()); \
-        Status status = gAVBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
+        Status status = avBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
         UT_LOG_INFO("Result createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \

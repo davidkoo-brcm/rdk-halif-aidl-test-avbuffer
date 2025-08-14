@@ -83,19 +83,34 @@ using namespace com::rdk::hal::avbuffer;
 using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::audiodecoder;
 
-UT_status_t vts_avbuffer_getService();
 sp<IAVBuffer> gAVBufferManager;
+
+static UT_status_t vts_avbuffer_getService()
+{
+    gAVBufferManager =
+        android::interface_cast<IAVBuffer>(
+            android::defaultServiceManager()->getService(
+                android::String16(IAVBuffer::serviceName().c_str())
+            )
+        );
+    if (gAVBufferManager == nullptr)
+    {
+        return UT_STATUS_FAILURE;
+    }
+    return UT_STATUS_OK;
+}
 
 UT_status_t VTS_AVBuffer_init()
 {
     if(vts_avbuffer_getService() != UT_STATUS_OK)
     {
+        UT_LOG_ERROR("Failed to get AVBuffer Service");
         return UT_STATUS_FAILURE;
     }
 
     if(vts_avbuffer_parseAudioDecoderHFP() != UT_STATUS_OK)
     {
-        return UT_STATUS_FAILURE;
+        UT_LOG_ERROR("Failed to process the AVBuffer HFP file");
     }
 
     return UT_STATUS_OK;
