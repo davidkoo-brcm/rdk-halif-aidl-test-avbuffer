@@ -53,6 +53,9 @@
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
+#define AUDIO_TEST 0x01
+#define VIDEO_TEST 0x02
+
 #define SECUREHEAP_TEST 0x01
 #define ALLOCATE_TEST 0x02
 #define NOTIFY_TEST 0x04
@@ -351,10 +354,12 @@ class VTS_L3_AVBuffer : public virtual UTCore
 
         }
 
-        void runTest(bool isAudio,bool isConcurrent, uint8_t testConfig){
+        void runTest(int8_t testSelection,bool isConcurrent, uint8_t testConfig){
             IVideoDecoder::Id _videoDecoderId;
+            IAudioDecoder::Id _audioDecoderId;
             _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
-            if(isAudio)
+            _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+            if(testSelection & AUDIO_TEST)
             {
                 if(!isConcurrent)
                 {
@@ -367,13 +372,24 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 else
                 {
                     std::vector<std::thread> threads;
-
                     for(const auto& _decoderId: sAudioDecoderIds)
                     {
-                        threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
-                        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
-                        });
+                        if(testSelection & VIDEO_TEST){
+                            for(const auto& _videodecoderId: sVideoDecoderIds)
+                            {
+                                threads.emplace_back([this, _videodecoderId,_decoderId,testConfig]() {
+                                this->AvBufferTest(_decoderId,_videodecoderId,testConfig);
+                                });
+                            }
+                        }
+                        else
+                        {
+                            threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
+                            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
+                            });
+                        }
                     }
+
                     for(auto& t : threads)
                     {
                         if(t.joinable())
@@ -381,13 +397,10 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     }
                     this->destroyPools(testConfig);
                     threads.clear();
-
                 }
             }
-            else
+            else if(testSelection == VIDEO_TEST)
             {
-                IAudioDecoder::Id _audioDecoderId;
-                _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
                 if(!isConcurrent){
                     for(const auto& _decoderId: sVideoDecoderIds)
                     {
@@ -448,7 +461,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool)
 {
     uint8_t testConfig = 0x00;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 
 }
 
@@ -467,37 +480,37 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopoolpcm)
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_alloc)
 {
     uint8_t testConfig = ALLOCATE_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_trim)
 {
     uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_notify)
 {
     uint8_t testConfig = ALLOCATE_TEST| NOTIFY_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_readwrite)
 {
     uint8_t testConfig = ALLOCATE_TEST| READWRITE_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopool_sha1)
 {
     uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST |SHA1_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool)
 {
     uint8_t testConfig = SECUREHEAP_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopoolpcm)
@@ -515,246 +528,317 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopoolpcm)
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_alloc)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_trim)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | TRIM_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_notify)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | NOTIFY_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_readwrite)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopool_sha1)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
-    this->runTest(true,false,testConfig);
+    this->runTest(AUDIO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool)
 {
     uint8_t testConfig = 0x00;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_alloc)
 {
     uint8_t testConfig = ALLOCATE_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_trim)
 {
     uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_notify)
 {
     uint8_t testConfig = ALLOCATE_TEST | NOTIFY_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_readwrite)
 {
     uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audiopool_sha1)
 {
     uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool)
 {
     uint8_t testConfig = SECUREHEAP_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_alloc)
 {
     uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_trim)
 {
     uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | TRIM_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_notify)
 {
     uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | NOTIFY_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_readwrite)
 {
     uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | READWRITE_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audiopool_sha1)
 {
     uint8_t testConfig = SECUREHEAP_TEST| ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
-    this->runTest(true,true,testConfig);
+    this->runTest(AUDIO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool)
 {
     uint8_t testConfig = 0x00;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_alloc)
 {
     uint8_t testConfig = ALLOCATE_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_trim)
 {
     uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST ;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_notify)
 {
     uint8_t testConfig = ALLOCATE_TEST | NOTIFY_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_readwrite)
 {
     uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_videopool_sha1)
 {
     uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool)
 {
     uint8_t testConfig = SECUREHEAP_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_alloc)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_trim)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | TRIM_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_notify)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | NOTIFY_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_readwrite)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_videopool_sha1)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
-    this->runTest(false,false,testConfig);
+    this->runTest(VIDEO_TEST,false,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool)
 {
     uint8_t testConfig = 0x00;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_alloc)
 {
     uint8_t testConfig = ALLOCATE_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_trim)
 {
     uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_notify)
 {
     uint8_t testConfig = ALLOCATE_TEST | NOTIFY_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_readwrite)
 {
     uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_videopool_sha1)
 {
     uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool)
 {
     uint8_t testConfig = SECUREHEAP_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_alloc)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_trim)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | TRIM_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_notify)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | NOTIFY_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_readwrite)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
 }
 
 UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_videopool_sha1)
 {
     uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
-    this->runTest(false,true,testConfig);
+    this->runTest(VIDEO_TEST,true,testConfig);
+}
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audio_videopool)
+{
+    uint8_t testConfig = 0x00;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audio_videopool_alloc)
+{
+    uint8_t testConfig = ALLOCATE_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audio_videopool_trim)
+{
+    uint8_t testConfig = ALLOCATE_TEST | TRIM_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audio_videopool_notify)
+{
+    uint8_t testConfig = ALLOCATE_TEST | NOTIFY_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audio_videopool_readwrite)
+{
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_nonsec_audio_videopool_sha1)
+{
+    uint8_t testConfig = ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audio_videopool)
+{
+    uint8_t testConfig = SECUREHEAP_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audio_videopool_alloc)
+{
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audio_videopool_trim)
+{
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | TRIM_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audio_videopool_notify)
+{
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | NOTIFY_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audio_videopool_readwrite)
+{
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
+}
+
+UT_ADD_TEST(VTS_L3_AVBuffer, con_sec_audio_videopool_sha1)
+{
+    uint8_t testConfig = SECUREHEAP_TEST | ALLOCATE_TEST | READWRITE_TEST | SHA1_TEST;
+    this->runTest((VIDEO_TEST|AUDIO_TEST),true,testConfig);
 }
