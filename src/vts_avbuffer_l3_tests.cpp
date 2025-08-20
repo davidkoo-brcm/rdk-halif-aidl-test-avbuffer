@@ -237,7 +237,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             UT_ASSERT_EQUAL(sPoolMetrics.bytesTotal, sizeUsed+sizeFree);
         }
     public:
-        void AvBufferTest(IAudioDecoder::Id _audioDecoderId,IVideoDecoder::Id _videoDecoderId, uint8_t testConfig)
+        void AvBufferTest(IAudioDecoder::Id _audioDecoderId,IVideoDecoder::Id _videoDecoderId, uint8_t testConfig, uint8_t testSelection)
         {
             Pool pool;
             bool isValidResult = false;
@@ -257,36 +257,39 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 secureHeap = true;
             }
 
-            if(_videoDecoderId.value == IVideoDecoder::Id::UNDEFINED){
+            if(testSelection == AUDIO_TEST){
                 AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, _audioDecoderId, listener, pool);
             }
-            else
-            {
+            else{
                 AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, _videoDecoderId, listener, pool);
             }
-
-
-            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,pool,sPoolMetrics);
+            sPoolsCreated.emplace_back(pool);
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, sPoolMetrics);
             UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
             UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
-            if( testConfig & ALLOCATE_TEST){
-                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager,pool,((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)),bufferHandle);
-                AVBUFFER_ISVALID_SUCCESS(gAVBufferManager,bufferHandle, isValidResult);
+            if (testConfig & ALLOCATE_TEST)
+            {
+                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, ((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)), bufferHandle);
+                AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, bufferHandle, isValidResult);
                 UT_ASSERT_TRUE(isValidResult);
-                sizeUsed = sPoolMetrics.bytesUsed+(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed);
+                sBufferHandles.push_back(bufferHandle);
+                sizeUsed = sPoolMetrics.bytesUsed + (sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed);
                 sizeFree = 0;
-                checkMetrics(pool,sizeFree,sizeUsed);
+                checkMetrics(pool, sizeFree, sizeUsed);
             }
-            if(testConfig & NOTIFY_TEST){
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager,pool,(sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)/2);
+            if (testConfig & NOTIFY_TEST)
+            {
+                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, pool, (sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed) / 2);
             }
-            if((testConfig & TRIM_TEST) || (testConfig & NOTIFY_TEST)){
-                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,bufferHandle,(sizeUsed)/2);
-                sizeUsed = sizeUsed/2;
-                sizeFree = sizeUsed/2;
-                checkMetrics(pool,sizeFree,sizeUsed);
+            if ((testConfig & TRIM_TEST) || (testConfig & NOTIFY_TEST))
+            {
+                AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, bufferHandle, (sizeUsed) / 2);
+                sizeUsed = sizeUsed / 2;
+                sizeFree = sizeUsed / 2;
+                checkMetrics(pool, sizeFree, sizeUsed);
+            }
 
-            }
+
             if(testConfig & NOTIFY_TEST)
             {
                 isSpaceAvailable = listener->getIsSpaceAvailable();
@@ -333,15 +336,12 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 }
             }
 
-            sPoolsCreated.emplace_back(pool);
             sSpaceListeners.emplace_back(listener);
-            sBufferHandles.push_back(bufferHandle);
         }
         void destroyPools(uint8_t testConfig)
         {
             if(ALLOCATE_TEST & testConfig){
                 for(const auto& bufferHandle : sBufferHandles){
-                    UT_LOG_INFO("bufferHandle:[0x%08X]", bufferHandle); \
                     AVBUFFER_FREE_SUCCESS(gAVBufferManager,bufferHandle);
                 }
                 sBufferHandles.clear();
@@ -359,77 +359,52 @@ class VTS_L3_AVBuffer : public virtual UTCore
             IAudioDecoder::Id _audioDecoderId;
             _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
             _audioDecoderId.value = IAudioDecoder::Id::UNDEFINED;
+            std::vector<std::thread> threads;
             if(testSelection & AUDIO_TEST)
             {
                 if(!isConcurrent)
                 {
                     for(const auto& _decoderId: sAudioDecoderIds)
                     {
-                        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
+                        this->AvBufferTest(_decoderId,_videoDecoderId,testConfig,AUDIO_TEST);
                         this->destroyPools(testConfig);
                     }
                 }
                 else
                 {
-                    std::vector<std::thread> threads;
-                    for(const auto& _decoderId: sAudioDecoderIds)
+                    for (const auto &_decoderId : sAudioDecoderIds)
                     {
-                        if(testSelection & VIDEO_TEST){
-                            for(const auto& _videodecoderId: sVideoDecoderIds)
-                            {
-                                threads.emplace_back([this, _videodecoderId,_decoderId,testConfig]() {
-                                this->AvBufferTest(_decoderId,_videodecoderId,testConfig);
-                                });
-                            }
-                        }
-                        else
-                        {
-                            threads.emplace_back([this, _videoDecoderId,_decoderId,testConfig]() {
-                            this->AvBufferTest(_decoderId,_videoDecoderId,testConfig);
-                            });
-                        }
+                        threads.emplace_back([this, _videoDecoderId, _decoderId, testConfig]()
+                                             { this->AvBufferTest(_decoderId, _videoDecoderId, testConfig,AUDIO_TEST); });
                     }
-
-                    for(auto& t : threads)
-                    {
-                        if(t.joinable())
-                        t.join();
-                    }
-                    this->destroyPools(testConfig);
-                    threads.clear();
                 }
             }
-            else if(testSelection == VIDEO_TEST)
+            else if(testSelection & VIDEO_TEST)
             {
                 if(!isConcurrent){
                     for(const auto& _decoderId: sVideoDecoderIds)
                     {
-                        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
+                        this->AvBufferTest(_audioDecoderId,_decoderId,testConfig,VIDEO_TEST);
                         this->destroyPools(testConfig);
                     }
                 }
                 else
                 {
-                    std::vector<std::thread> threads;
-
                     for(const auto& _decoderId: sVideoDecoderIds)
                     {
                         threads.emplace_back([this, _audioDecoderId,_decoderId,testConfig]() {
-                            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig);
+                            this->AvBufferTest(_audioDecoderId,_decoderId,testConfig,VIDEO_TEST);
                             });
                     }
-                    for(auto& t : threads)
-                    {
-                        if(t.joinable())
-                            t.join();
-                    }
-                    this->destroyPools(testConfig);
-                    threads.clear();
-
                 }
-
             }
-
+            for (auto &t : threads)
+            {
+                if (t.joinable())
+                    t.join();
+            }
+            this->destroyPools(testConfig);
+            threads.clear();
         }
 };
 
@@ -473,7 +448,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_nonsec_audiopoolpcm)
     IVideoDecoder::Id _videoDecoderId;
     _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
-    this->AvBufferTest(_audioDecoderId,_videoDecoderId,testConfig);
+    this->AvBufferTest(_audioDecoderId,_videoDecoderId,testConfig,AUDIO_TEST);
     this->destroyPools(testConfig);
 }
 
@@ -521,7 +496,7 @@ UT_ADD_TEST(VTS_L3_AVBuffer, seq_sec_audiopoolpcm)
     IVideoDecoder::Id _videoDecoderId;
     _videoDecoderId.value = IVideoDecoder::Id::UNDEFINED;
 
-    this->AvBufferTest(_audioDecoderId,_videoDecoderId,testConfig);
+    this->AvBufferTest(_audioDecoderId,_videoDecoderId,testConfig,AUDIO_TEST);
     this->destroyPools(testConfig);
 }
 
