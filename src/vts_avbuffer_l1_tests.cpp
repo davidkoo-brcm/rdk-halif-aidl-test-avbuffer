@@ -367,7 +367,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
 {
-    bool secureHeap = true;
+    bool secureHeap = false;
     IAudioDecoder::Id audioDecoderId;
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
