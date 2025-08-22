@@ -398,13 +398,16 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     }
                 }
             }
-            for (auto &t : threads)
+            if (isConcurrent)
             {
-                if (t.joinable())
-                    t.join();
+                for (auto& t : threads)
+                {
+                    if (t.joinable())
+                        t.join();
+                }
+                this->destroyPools(testConfig);
+                threads.clear();
             }
-            this->destroyPools(testConfig);
-            threads.clear();
         }
 };
 
