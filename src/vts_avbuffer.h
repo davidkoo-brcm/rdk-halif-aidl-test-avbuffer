@@ -138,12 +138,17 @@ do { \
 
 #define AVBUFFER_CREATE_VIDEOPOOL_FAILURE(avBufferManager, secureHeap, videoDecoderId, listener, videoPool, exception) \
     do { \
+        videoPool.handle = Pool::INVALID; \
         UT_LOG_INFO("Calling createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool)", \
             secureHeap, videoDecoderId.value, listener.get()); \
         Status status = avBufferManager->createVideoPool(secureHeap, videoDecoderId, listener, &videoPool); \
         UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        if (videoPool.handle != Pool::INVALID) { \
+            avBufferManager->destroyPool(videoPool); \
+            videoPool.handle = Pool::INVALID; \
+        } \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
     } while (0)
@@ -163,12 +168,17 @@ do { \
 
 #define AVBUFFER_CREATE_AUDIOPOOL_FAILURE(avBufferManager, secureHeap, audioDecoderId, listener, audioPool, exception) \
     do { \
+        audioPool.handle = Pool::INVALID; \
         UT_LOG_INFO("Calling createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool)", \
                     secureHeap, audioDecoderId.value, listener.get()); \
         Status status = avBufferManager->createAudioPool(secureHeap, audioDecoderId, listener, &audioPool); \
         UT_LOG_INFO("Result createAudioPool(IN:secureHeap:[%d], IN:audioDecoderId:[%d], IN:listener:[%p], OUT:audioPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        if (audioPool.handle != Pool::INVALID) { \
+            avBufferManager->destroyPool(audioPool); \
+            audioPool.handle = Pool::INVALID; \
+        } \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
     } while (0)
@@ -249,11 +259,16 @@ do { \
 
 #define AVBUFFER_ALLOC_FAILURE(avBufferManager, pool, size, bufferHandle, exception) \
     do { \
+        bufferHandle = -1; \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016"PRIx64"]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        if(bufferHandle != 1){ \
+            avBufferManager->free(bufferHandle); \
+            bufferHandle = -1; \
+        } \
         UT_ASSERT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
     } while (0)
