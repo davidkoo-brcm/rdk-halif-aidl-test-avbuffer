@@ -268,7 +268,7 @@ do { \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016"PRIx64"]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        if(bufferHandle != 1){ \
+        if(bufferHandle != -1){ \
             avBufferManager->free(bufferHandle,&_aidl_return); \
             bufferHandle = -1; \
         } \
