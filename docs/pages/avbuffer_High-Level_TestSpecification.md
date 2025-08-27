@@ -165,3 +165,15 @@ The table below summarizes the L3 test cases executed using various configuratio
 |58|Alloc_Dealloc_Concurrent_Secure_VideopoolTrim|✔|✘|✘|✘|✔|✔|✘|✔|✘|✘|✘|✘|✔|
 |59|Alloc_Dealloc_Concurrent_Secure_VideopoolAllocInvalidsize|✔|✘|✘|✘|✔|✔|✘|✘|✔|✘|✘|✘|✔|
 |60|Alloc_Dealloc_Concurrent_Secure_VideopoolValidateSHA1|✔|✘|✘|✘|✔|✔|✘|✘|✘|✔|✘|✘|✔|
+|61|Alloc_Dealloc_Concurrent_NonSecure_AudioAndVideopool|✘|✔|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✔|
+|62|Alloc_Dealloc_Concurrent_NonSecure_AudioAndVidedecoders|✘|✔|✘|✘|✔|✔|✘|✘|✘|✘|✘|✘|✔|
+|63|Alloc_Dealloc_Concurrent_NonSecure_AudioAndVideopoolNotifyspace|✘|✔|✘|✘|✔|✔|✔|✘|✘|✘|✘|✘|✔|
+|64|Alloc_Dealloc_Concurrent_NonSecure_AudioAndVideopoolTrim|✘|✔|✘|✘|✔|✔|✘|✔|✘|✘|✘|✘|✔|
+|65|Alloc_Dealloc_Concurrent_NonSecure_AudioAndVideopoolAllocInvalidsize|✘|✔|✘|✘|✔|✔|✘|✘|✔|✘|✘|✘|✔|
+|66|Alloc_Dealloc_Concurrent_NonSecure_AudioAndVideopoolValidateSHA1|✘|✔|✘|✘|✔|✔|✘|✘|✘|✔|✘|✘|✔|
+|67|Alloc_Dealloc_Concurrent_Secure_AudioAndVideopool|✔|✔|✘|✘|✔|✘|✘|✘|✘|✘|✘|✘|✔|
+|68|Alloc_Dealloc_Concurrent_Secure_AudioAndVidedecoders|✔|✔|✘|✘|✔|✔|✘|✘|✘|✘|✘|✘|✔|
+|69|Alloc_Dealloc_Concurrent_Secure_AudioAndVideopoolNotifyspace|✔|✔|✘|✘|✔|✔|✔|✘|✘|✘|✘|✘|✔|
+|70|Alloc_Dealloc_Concurrent_Secure_AudioAndVideopoolTrim|✔|✔|✘|✘|✔|✔|✘|✔|✘|✘|✘|✘|✔|
+|71|Alloc_Dealloc_Concurrent_Secure_AudioAndVideopoolAllocInvalidsize|✔|✔|✘|✘|✔|✔|✘|✘|✔|✘|✘|✘|✔|
+|72|Alloc_Dealloc_Concurrent_Secure_AudioAndVideopoolValidateSHA1|✔|✔|✘|✘|✔|✔|✘|✘|✘|✔|✘|✘|✔|

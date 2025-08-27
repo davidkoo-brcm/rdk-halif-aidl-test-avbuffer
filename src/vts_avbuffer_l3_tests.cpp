@@ -164,6 +164,7 @@ static std::vector<int64_t> sBufferHandles;
 static std::vector<Pool> sPoolsCreated;
 static sp<IVideoDecoderManager> sVideoDecoderManager;
 static IAVBufferHelper* sAVbufferHelper;
+static std::mutex sResourceMutex;
 
 
 static bool sAllocateTest;
@@ -263,7 +264,10 @@ class VTS_L3_AVBuffer : public virtual UTCore
             else{
                 AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, _videoDecoderId, listener, pool);
             }
-            sPoolsCreated.emplace_back(pool);
+            {
+                std::lock_guard<std::mutex> lock(sResourceMutex);
+                sPoolsCreated.emplace_back(pool);
+            }
             AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, sPoolMetrics);
             UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
             UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
@@ -272,7 +276,10 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, ((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)), bufferHandle);
                 AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, bufferHandle, isValidResult);
                 UT_ASSERT_TRUE(isValidResult);
-                sBufferHandles.push_back(bufferHandle);
+                {
+                    std::lock_guard<std::mutex> lock(sResourceMutex);
+                    sBufferHandles.push_back(bufferHandle);
+                }
                 sizeUsed = sPoolMetrics.bytesUsed + (sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed);
                 sizeFree = 0;
                 checkMetrics(pool, sizeFree, sizeUsed);
@@ -335,11 +342,14 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     }
                 }
             }
-
-            sSpaceListeners.emplace_back(listener);
+            {
+                std::lock_guard<std::mutex> lock(sResourceMutex);
+                sSpaceListeners.emplace_back(listener);
+            }
         }
         void destroyPools(uint8_t testConfig)
         {
+            std::lock_guard<std::mutex> lock(sResourceMutex);
             if(ALLOCATE_TEST & testConfig){
                 for(const auto& bufferHandle : sBufferHandles){
                     AVBUFFER_FREE_SUCCESS(gAVBufferManager,bufferHandle);
