@@ -377,7 +377,6 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     for(const auto& _decoderId: sAudioDecoderIds)
                     {
                         this->AvBufferTest(_decoderId,_videoDecoderId,testConfig,AUDIO_TEST);
-                        this->destroyPools(testConfig);
                     }
                 }
                 else
@@ -395,7 +394,6 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     for(const auto& _decoderId: sVideoDecoderIds)
                     {
                         this->AvBufferTest(_audioDecoderId,_decoderId,testConfig,VIDEO_TEST);
-                        this->destroyPools(testConfig);
                     }
                 }
                 else
@@ -408,16 +406,13 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     }
                 }
             }
-            if (isConcurrent)
+            for (auto &t : threads)
             {
-                for (auto& t : threads)
-                {
-                    if (t.joinable())
-                        t.join();
-                }
-                this->destroyPools(testConfig);
-                threads.clear();
+                if (t.joinable())
+                    t.join();
             }
+            this->destroyPools(testConfig);
+            threads.clear();
         }
 };
 
