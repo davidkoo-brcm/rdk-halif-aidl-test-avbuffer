@@ -1603,6 +1603,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_neg)
 {
     int64_t invalidBufferHandle = -1; // Example of an invalid handle
     std::vector<uint8_t> sha1Result;
+    if(gAVBuffer_hfp.supportSHA1){
+        AVBUFFER_CALCULATESHA_FAILURE(gAVBufferManager, invalidBufferHandle, sha1Result, Status::EX_ILLEGAL_ARGUMENT);
+    }
+    else{
+        AVBUFFER_CALCULATESHA_FAILURE(gAVBufferManager, invalidBufferHandle, sha1Result, Status::EX_UNSUPPORTED_OPERATION);
+    }
 
-    AVBUFFER_CALCULATESHA_FAILURE(gAVBufferManager, invalidBufferHandle, sha1Result, Status::EX_ILLEGAL_ARGUMENT);
 }

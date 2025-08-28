@@ -4,3 +4,4 @@ IAVBuffer:
   interfaceVersion: current
   nonSecureHeapBytes: 28311552
   secureHeapBytes: 0
+  supportsSHA1: true
