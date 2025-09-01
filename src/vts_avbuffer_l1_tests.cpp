@@ -68,11 +68,10 @@ class VTS_L1_AVBuffer : public virtual UTCore
 protected:
     static void SetUpTestSuite()
     {
-            if(gAVBufferManager == NULL)
-            {
-                UT_FAIL_FATAL("Failed to get AVBufferManager instance");
-
-            }
+        if(gAVBufferManager == NULL)
+        {
+            UT_FAIL_FATAL("Failed to get AVBufferManager instance");
+        }
     }
 
     static void TearDownTestSuite()
@@ -368,6 +367,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
 {
+    bool secureHeap = true;
     IAudioDecoder::Id audioDecoderId;
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
@@ -379,34 +379,34 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
     int32_t leastValue = gAVBuffer_hfp.audioDecoderId.front();
     int32_t highestValue = gAVBuffer_hfp.audioDecoderId.back();
 
+    // Test with least value - 1
+    audioDecoderId.value = leastValue - 1;
+    if(audioDecoderId.value == IAudioDecoder::Id::UNDEFINED)
+    {
+        audioDecoderId.value--;
+    }
+    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_ILLEGAL_ARGUMENT);
+
+    // Test with highest value + 1
+    audioDecoderId.value = highestValue + 1;
+    if(audioDecoderId.value == IAudioDecoder::Id::UNDEFINED)
+    {
+        audioDecoderId.value++;
+    }
+    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_ILLEGAL_ARGUMENT);
+
+    //Null Listener for Audio Pool Creation
+    audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front(); // Use a valid ID
+    AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener_nullptr, audioPool, Status::EX_NULL_POINTER);
+
+    // Test out of memory
     for (bool secureHeap : {true, false})
     {
-        // Skip if the plafrom doesn't support secure heap
+        //Skip if the plafrom doesn't support secure heap
         if (secureHeap && !gAVBuffer_hfp.supportSecure)
         {
             continue;
         }
-        // Test with least value - 1
-        audioDecoderId.value = leastValue - 1;
-        if (audioDecoderId.value == IAudioDecoder::Id::UNDEFINED)
-        {
-            audioDecoderId.value--;
-        }
-        AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_ILLEGAL_ARGUMENT);
-
-        // Test with highest value + 1
-        audioDecoderId.value = highestValue + 1;
-        if (audioDecoderId.value == IAudioDecoder::Id::UNDEFINED)
-        {
-            audioDecoderId.value++;
-        }
-        AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_ILLEGAL_ARGUMENT);
-
-        // Null Listener for Audio Pool Creation
-        audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front(); // Use a valid ID
-        AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener_nullptr, audioPool, Status::EX_NULL_POINTER);
-
-        // Test out of memory
 
         audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
 
@@ -417,20 +417,20 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
         audioPools.push_back(audioPool);
 
         /* Exhaust the heap memory */
-        while ((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= audioPoolMetrics.bytesTotal)
+        while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= audioPoolMetrics.bytesTotal)
         {
             int prev_bytesUsed = heapMetrics.bytesUsed;
             AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
             audioPools.push_back(audioPool);
             AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
-            if (prev_bytesUsed == heapMetrics.bytesUsed)
+            if(prev_bytesUsed == heapMetrics.bytesUsed)
                 break;
         }
 
         /* Try to allocate the memory */
         AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_SERVICE_SPECIFIC);
 
-        for (const auto &pool : audioPools)
+        for (const auto& pool : audioPools)
         {
             AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, pool);
         }
