@@ -204,11 +204,20 @@ class VTS_L3_AVBuffer : public virtual UTCore
     protected:
         static void SetUpTestSuite()
         {
+            if(gAVBufferManager == NULL)
+            {
+                UT_FAIL_FATAL("Failed to get AVBufferManager instance");
+
+            }
             UT_ASSERT_EQUAL(vts_audiodecoder_getService(),UT_STATUS_OK);
             AUDIODECODER_MANAGER_GETAUDIODECODERIDS(sAudioDecoderIds);
             UT_ASSERT_EQUAL(vts_videodecoder_getService(),UT_STATUS_OK);
             VIDEODECODER_MANAGER_GETVIDEODECODERIDS(sVideoDecoderIds);
             sAVbufferHelper = getAVBufferHelperInstance();
+            if(sAVbufferHelper == NULL)
+            {
+                UT_FAIL_FATAL("Failed to get AVBufferHelper instance");
+            }
         }
 
         static void TearDownTestSuite()
