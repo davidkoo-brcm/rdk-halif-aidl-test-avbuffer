@@ -68,6 +68,10 @@ class VTS_L1_AVBuffer : public virtual UTCore
 protected:
     static void SetUpTestSuite()
     {
+        if(gAVBufferManager == NULL)
+        {
+            UT_FAIL_FATAL("Failed to get AVBufferManager instance");
+        }
     }
 
     static void TearDownTestSuite()
