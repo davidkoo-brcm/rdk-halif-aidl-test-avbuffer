@@ -4,6 +4,7 @@ IAVBuffer:
   interfaceVersion: current
   nonSecureHeapBytes: 16000000
   secureHeapBytes: 16000000
+  supportsSHA1: true
 
 IVideoDecoderManager:           # Component object begins
   interfaceVersion: current
