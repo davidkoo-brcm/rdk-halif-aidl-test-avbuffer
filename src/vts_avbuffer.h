@@ -341,9 +341,9 @@ do { \
 
 #define AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult) \
     do { \
-        UT_LOG_INFO("Calling isValid(IN:bufferHandle:[0X%08X], OUT:_aidl_return[])", bufferHandle); \
+        UT_LOG_INFO("Calling isValid(IN:bufferHandle:[0X%016"PRIx64"], OUT:_aidl_return[])", bufferHandle); \
         Status status = avBufferManager->isValid(bufferHandle, &isValidResult); \
-        UT_LOG_INFO("Result isValid(IN:bufferHandle:[0X%08X], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result isValid(IN:bufferHandle:[0X%016"PRIx64"], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, isValidResult), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
