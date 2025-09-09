@@ -20,7 +20,8 @@
 
 #include "vts_avbuffer_parse_hfp.h"
 #include "vts_avbuffer.h"
-#include "avbufferhelper.h"
+#include "IAVBufferHelper.h"
+#include <filesystem>
 
 #include "com/rdk/hal/audiodecoder/BpAudioDecoderManager.h"
 #include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"
@@ -53,6 +54,9 @@
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
+#define DATA_PATH "avbuffer.sample_data"
+#define SHA1_PATH "avbuffer.sha1"
+
 #define AUDIO_TEST 0x01
 #define VIDEO_TEST 0x02
 
@@ -62,7 +66,7 @@
 #define TRIM_TEST 0x08
 #define READWRITE_TEST 0x10
 #define SHA1_TEST 0x20
-
+#if 0
 uint8_t standard_data[256] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -102,6 +106,7 @@ const uint8_t standard_data_sha1[20] = {
     0x14, 0x3e, 0x0a, 0x76, 0x51, 0xd1, 0xe6, 0x7a,
     0x2f, 0x0d, 0x29, 0x16
 };
+#endif
 /* Status::Exception */
 const static ut_control_keyStringMapping_t statusException_mapTable[] =
 {
@@ -237,7 +242,9 @@ class VTS_L3_AVBuffer : public virtual UTCore
             uint32_t mapSize = 0;
             int32_t sizeUsed = 0;
             int32_t sizeFree = 0;
+            uint8_t standard_data[256] = {0};
             uint8_t read_data[256] = {0};
+            uint8_t standard_data_sha1[20] = {0};
             std::vector<uint8_t> sha1Result;
             sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
             if(testConfig & SECUREHEAP_TEST)
@@ -295,6 +302,11 @@ class VTS_L3_AVBuffer : public virtual UTCore
             }
             if(testConfig & READWRITE_TEST )
             {
+                for(int i=0; i< UT_KVP_PROFILE_GET_LIST_COUNT(DATA_PATH); i++)
+                {
+                    string hexpath = string(DATA_PATH) +"."+ to_string(i);
+                    standard_data[i] = (uint8_t)UT_KVP_PROFILE_GET_UINT8(hexpath.c_str());
+                }
                 AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager,bufferHandle,sizeof(standard_data));
                 if(secureHeap){
                     if(!sAVbufferHelper->writeSecureHandle(bufferHandle, standard_data, sizeof(standard_data)))
@@ -325,6 +337,11 @@ class VTS_L3_AVBuffer : public virtual UTCore
             }
             if(testConfig & SHA1_TEST)
             {
+                for(int i = 0; i<UT_KVP_PROFILE_GET_LIST_COUNT(SHA1_PATH);i++)
+                {
+                    string sha1Path = string(SHA1_PATH) + "." + to_string(i);
+                    standard_data_sha1[i] = (uint8_t)UT_KVP_PROFILE_GET_UINT8(sha1Path.c_str());
+                }
                 AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager,bufferHandle,sha1Result);
                 if(!sha1Result.empty()){
                     for(int i = 0; i< 20; i++)

@@ -72,6 +72,9 @@
 #include "com/rdk/hal/avbuffer/IAVBuffer.h"
 #include "com/rdk/hal/avbuffer/BnAVBufferSpaceListener.h"
 #include "vts_avbuffer_parse_hfp.h"
+#include "vts_helper_functions.h"
+
+#define VTS_AVBUFFER_TEST_CONFIG_PATH "./avbuffer_test_configuration/vts_avbuffer_test_config.yaml"
 
 using android::sp;
 using android::String16;
@@ -84,6 +87,7 @@ using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::audiodecoder;
 
 sp<IAVBuffer> gAVBufferManager;
+void *gAvBufferTestConfiguration = nullptr;
 
 static UT_status_t vts_avbuffer_getService()
 {
@@ -113,7 +117,15 @@ UT_status_t VTS_AVBuffer_init()
         UT_LOG_ERROR("Failed to process the AVBuffer HFP file");
     }
 
+    gAvBufferTestConfiguration = vts_kvp_create_instance(VTS_AVBUFFER_TEST_CONFIG_PATH);
+
     return UT_STATUS_OK;
+}
+
+void VTS_AvBuffer_destroy()
+{
+    vts_kvp_destroy_instance(gAvBufferTestConfiguration);
+    gAvBufferTestConfiguration = nullptr;
 }
 
  /** @} */ // End of AV_BUFFER_HALTEST_INIT
