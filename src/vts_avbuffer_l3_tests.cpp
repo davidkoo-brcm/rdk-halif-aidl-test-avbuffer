@@ -120,8 +120,6 @@ const static ut_control_keyStringMapping_t statusException_mapTable[] =
     {NULL, -1}
 };
 
-
-
 /* bool */
 const static ut_control_keyStringMapping_t bool_mapTable[] =
 {
@@ -154,7 +152,6 @@ public:
     }
 };
 
-extern sp<IAVBuffer> gAVBufferManager;
 static sp<IAudioDecoderManager> sAudioDecoderManager;
 static PoolMetrics sPoolMetrics;
 static std::vector<IAudioDecoder::Id> sAudioDecoderIds;
@@ -166,14 +163,11 @@ static sp<IVideoDecoderManager> sVideoDecoderManager;
 static IAVBufferHelper* sAVbufferHelper;
 static std::mutex sResourceMutex;
 
-
 static bool sAllocateTest;
 static bool sNotifyTest;
 static bool sTrimTest;
 static bool sReadWriteTest;
 static bool sSHA1Test;
-
-
 
 UT_status_t vts_audiodecoder_getService()
 {
