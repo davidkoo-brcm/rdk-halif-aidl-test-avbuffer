@@ -92,6 +92,8 @@
 #define MAX_WAIT_MS 10
 #define MAX_FINAL_WAIT_MS 5000
 
+extern void *gAvBufferTestConfiguration;
+
 using android::sp;
 using android::String16;
 using android::defaultServiceManager;
