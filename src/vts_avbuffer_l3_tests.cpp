@@ -163,12 +163,6 @@ static sp<IVideoDecoderManager> sVideoDecoderManager;
 static IAVBufferHelper* sAVbufferHelper;
 static std::mutex sResourceMutex;
 
-static bool sAllocateTest;
-static bool sNotifyTest;
-static bool sTrimTest;
-static bool sReadWriteTest;
-static bool sSHA1Test;
-
 UT_status_t vts_audiodecoder_getService()
 {
     sAudioDecoderManager = android::interface_cast<IAudioDecoderManager>(
@@ -241,7 +235,6 @@ class VTS_L3_AVBuffer : public virtual UTCore
             int64_t bufferHandle;
             void* mapBuffer =  NULL;
             uint32_t mapSize = 0;
-            int32_t sizeAllocated = 0;
             int32_t sizeUsed = 0;
             int32_t sizeFree = 0;
             uint8_t read_data[256] = {0};
