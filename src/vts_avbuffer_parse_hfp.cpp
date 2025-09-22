@@ -66,7 +66,7 @@
 
 avbuffer_t gAVBuffer_hfp;
 
-UT_status_t vts_avbuffer_parseAudioDecoderHFP()
+UT_status_t vts_avbuffer_parseAVBufferHFP()
 {
     std::string videodecoder_count_path = VIDEODECODER_PATH;
     std::string audiodecoder_count_path = AUDIODECODER_PATH;
