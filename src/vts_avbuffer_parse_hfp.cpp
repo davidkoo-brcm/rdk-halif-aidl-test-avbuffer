@@ -66,7 +66,7 @@
 
 avbuffer_t gAVBuffer_hfp;
 
-UT_status_t vts_avbuffer_parseAudioDecoderHFP()
+UT_status_t vts_avbuffer_parseAVBufferHFP()
 {
     std::string videodecoder_count_path = VIDEODECODER_PATH;
     std::string audiodecoder_count_path = AUDIODECODER_PATH;
@@ -87,7 +87,7 @@ UT_status_t vts_avbuffer_parseAudioDecoderHFP()
 
     for (int index = 0; index < videoCount; ++index)
     {
-        std::string videodecoderidpath = VIDEODECODER_PATH  "." + std::to_string(index) + ".id";
+        std::string videodecoderidpath = VIDEODECODER_PATH  "." + std::to_string(index) + ".ID";
         int32_t _videoDecoderId = UT_KVP_PROFILE_GET_UINT8(videodecoderidpath.c_str());
         gAVBuffer_hfp.videoDecoderId.push_back(_videoDecoderId);
     }
@@ -97,6 +97,7 @@ UT_status_t vts_avbuffer_parseAudioDecoderHFP()
     for (int index = 0; index < audioCount; ++index)
     {
         std::string audiodecoderidpath = AUDIODECODER_PATH  "." + std::to_string(index) + ".id";
+
         int32_t _audioDecoderId = UT_KVP_PROFILE_GET_UINT8(audiodecoderidpath.c_str());
         gAVBuffer_hfp.audioDecoderId.push_back(_audioDecoderId);
     }

@@ -108,7 +108,7 @@ UT_status_t VTS_AVBuffer_init()
         return UT_STATUS_FAILURE;
     }
 
-    if(vts_avbuffer_parseAudioDecoderHFP() != UT_STATUS_OK)
+    if(vts_avbuffer_parseAVBufferHFP() != UT_STATUS_OK)
     {
         UT_LOG_ERROR("Failed to process the AVBuffer HFP file");
     }

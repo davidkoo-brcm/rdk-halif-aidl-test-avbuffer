@@ -90,7 +90,7 @@ typedef struct avbuffer
 
 extern avbuffer_t gAVBuffer_hfp;
 
-UT_status_t vts_avbuffer_parseAudioDecoderHFP();
+UT_status_t vts_avbuffer_parseAVBufferHFP();
 
 #endif //__VTS_AVBUFFER_PARSE_HFP_H__
 
