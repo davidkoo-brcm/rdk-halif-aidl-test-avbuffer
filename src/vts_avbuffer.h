@@ -102,9 +102,17 @@ using namespace com::rdk::hal::avbuffer;
 using namespace com::rdk::hal::videodecoder;
 using namespace com::rdk::hal::audiodecoder;
 
+extern sp<IAVBuffer> gAVBufferManager;
+
 #ifndef ENABLE_UT_INFO_LOGGING
+#ifdef UT_LOG_DEBUG
+#undef UT_LOG_DEBUG
 #define UT_LOG_DEBUG(...)
+#endif
+#ifdef UT_LOG_INFO
+#undef UT_LOG_INFO
 #define UT_LOG_INFO(...)
+#endif
 #endif
 
 #define AVBUFFER_GETMETRICS(avBufferManager, secureHeap, heapMetrics) \
@@ -239,7 +247,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
-        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016"PRIx64"]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -251,7 +259,7 @@ do { \
     do { \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
-        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016"PRIx64"]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
@@ -261,9 +269,9 @@ do { \
 #define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016"PRIx64"], OUT:_aidl_return)", bufferHandle); \
+        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return)", bufferHandle); \
         Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016"PRIx64"], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -275,9 +283,9 @@ do { \
 #define AVBUFFER_FREE_FAILURE(avBufferManager, bufferHandle, exception) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016"PRIx64"], OUT:_aidl_return)", bufferHandle); \
+        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return)", bufferHandle); \
         Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016"PRIx64"], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -317,9 +325,9 @@ do { \
 #define AVBUFFER_TRIMSIZE_SUCCESS(avBufferManager, bufferHandle, newSize) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[0x%016"PRIx64"], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
+        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[0x%016" PRIx64 "], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
         Status status = avBufferManager->trimSize(bufferHandle, newSize, &_aidl_return); \
-        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[0x%016"PRIx64"], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[0x%016" PRIx64 "], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
@@ -330,9 +338,9 @@ do { \
 #define AVBUFFER_TRIMSIZE_FAILURE(avBufferManager, bufferHandle, newSize, exception) \
     do { \
         bool _aidl_return = false; \
-        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[0x%016"PRIx64"], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
+        UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[0x%016" PRIx64 "], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
         Status status = avBufferManager->trimSize(bufferHandle, newSize, &_aidl_return); \
-        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[0x%016"PRIx64"], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result trimSize(IN:bufferHandle:[0x%016" PRIx64 "], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
@@ -341,9 +349,9 @@ do { \
 
 #define AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult) \
     do { \
-        UT_LOG_INFO("Calling isValid(IN:bufferHandle:[0X%016"PRIx64"], OUT:_aidl_return[])", bufferHandle); \
+        UT_LOG_INFO("Calling isValid(IN:bufferHandle:[0X%016" PRIx64 "], OUT:_aidl_return[])", bufferHandle); \
         Status status = avBufferManager->isValid(bufferHandle, &isValidResult); \
-        UT_LOG_INFO("Result isValid(IN:bufferHandle:[0X%016"PRIx64"], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result isValid(IN:bufferHandle:[0X%016" PRIx64 "], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, isValidResult), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
@@ -378,9 +386,9 @@ do { \
 
 #define AVBUFFER_CALCULATESHA_SUCCESS(avBufferManager, poolHandle, sha1Result) \
     do { \
-        UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[0x%016"PRIx64"], OUT:sha1Result[])", poolHandle); \
+        UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[])", poolHandle); \
         Status status = avBufferManager->calculateSHA1(poolHandle, &sha1Result); \
-        UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[0x%016"PRIx64"], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \
                     poolHandle, sha1Result.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         if (status.isOk()) { \
@@ -395,9 +403,9 @@ do { \
 
 #define AVBUFFER_CALCULATESHA_FAILURE(avBufferManager, poolHandle, sha1Result, exception) \
     do { \
-        UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[0x%016"PRIx64"], OUT:sha1Result[])", poolHandle); \
+        UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[])", poolHandle); \
         Status status = avBufferManager->calculateSHA1(poolHandle, &sha1Result); \
-        UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[0x%016"PRIx64"], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \
+        UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \
                     poolHandle, sha1Result.size(), UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         if(status.exceptionCode() != Status::EX_UNSUPPORTED_OPERATION) { \

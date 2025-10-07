@@ -61,8 +61,6 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
     {NULL, -1}
 };
 
-extern sp<IAVBuffer> gAVBufferManager;
-
 class VTS_L1_AVBuffer : public virtual UTCore
 {
 protected:
