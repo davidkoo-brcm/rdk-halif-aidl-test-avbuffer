@@ -153,6 +153,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
 {
     bool secureHeap = true;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
 
     for (const auto& _videoDecoderId : gAVBuffer_hfp.videoDecoderId)
     {
@@ -214,6 +215,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     ::std::vector<Pool> videoPools;
     IVideoDecoder::Id videoDecoderId;
 
@@ -308,6 +310,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
     IAudioDecoder::Id audioDecoderId;
     bool secureHeap;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
@@ -370,6 +373,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     ::std::vector<Pool> audioPools;
     HeapMetrics heapMetrics;
     PoolMetrics audioPoolMetrics;
@@ -468,7 +472,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_pos)
 
     bool secureHeap;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
@@ -547,7 +553,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_neg)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -606,7 +614,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getPoolMetrics_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     PoolMetrics videoPoolMetrics;
     PoolMetrics audioPoolMetrics;
 
@@ -702,7 +712,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     PoolMetrics getpoolMetrics;
     int64_t firstbufferHandle;
     int64_t secondbufferHandle;
@@ -802,7 +814,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -867,7 +881,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     Pool invalidPool;
     invalidPool.handle = Pool::INVALID;
     PoolMetrics videoPoolMetrics;
@@ -940,7 +956,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -996,7 +1014,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     Pool invalidPool;
     invalidPool.handle = Pool::INVALID;
     PoolMetrics videoPoolMetrics;
@@ -1064,7 +1084,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int32_t new_size = size;
     int64_t videobufferHandle;
@@ -1139,7 +1161,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int32_t new_size = size;
     int64_t videobufferHandle, videobufferHandle_new;
@@ -1223,7 +1247,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -1286,7 +1312,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -1354,7 +1382,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -1435,7 +1465,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
@@ -1540,7 +1572,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_pos)
     IVideoDecoder::Id videoDecoderId;
     IAudioDecoder::Id audioDecoderId;
     Pool videoPool;
+    videoPool.handle = Pool::INVALID;
     Pool audioPool;
+    audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;

@@ -240,9 +240,14 @@ class VTS_L3_AVBuffer : public virtual UTCore
             uint8_t read_data[256] = {0};
             std::vector<uint8_t> sha1Result;
             sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
+            pool.handle = Pool::INVALID;
             if(testConfig & SECUREHEAP_TEST)
             {
                 secureHeap = true;
+            }
+            if(secureHeap && !gAVBuffer_hfp.secureHeapBytes)
+            {
+                return;
             }
 
             if(testSelection == AUDIO_TEST){
