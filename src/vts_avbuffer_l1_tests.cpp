@@ -558,7 +558,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_neg)
     audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -819,7 +821,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
     audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -890,7 +894,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
     PoolMetrics audioPoolMetrics;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1090,7 +1096,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
     int32_t size = 1024;
     int32_t new_size = size;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1252,7 +1260,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
     audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1317,7 +1327,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
     audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
     int64_t invalidBufferHandle = -1;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -1387,7 +1399,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
     audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
     int64_t invalidBufferHandle = -1;
     bool isValidResult = false;
 
@@ -1470,7 +1484,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
     audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
     std::vector<int64_t> allocList;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -1577,7 +1593,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_pos)
     audioPool.handle = Pool::INVALID;
     int32_t size = 1024;
     int64_t videobufferHandle;
+    videobufferHandle = -1;
     int64_t audioBufferHandle;
+    audioBufferHandle = -1;
     std::vector<uint8_t> sha1Result;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
