@@ -1,131 +1,20 @@
-# Testing Suite For AVBuffer HAL
+# AVBuffer HAL Test Suite
+
+This repository contains the Vendor Test Suite (VTS) for the `IAVBuffer` AIDL HAL interface. It is designed to validate the functionality of the AVBuffer HAL implementation, ensuring that it correctly handles memory management for audio and video buffers.
 
 ## Build Steps
 
-### 1. Build linux binder
+This test suite is part of Unified VTS for AIDL HALs. For initial setup, environment configuration, and build instructions, please refer to the Unified VTS README documentation.
 
-The test suite depends on the Linux binder with `AIDL` support. Follow these steps to build it:
+- **[Unified VTS README](https://github.com/rdkcentral/rdk-halif-aidl-unified-vts/blob/main/README.md)**
 
-For detail build instruction, please refer to [Linux Binder](https://github.com/rdk-e/linux_binder_idl/tree/main)
+## Running the AVBuffer Tests
 
-Here outline the simplest steps are
+While the Unified VTS can run all tests at once, you can execute the `VTS_L1_AVBuffer` and `VTS_L3_AVBuffer` test suite individually for targeted validation. This is useful for debugging and development of the `AVBuffer` HAL.
 
-```bash
-git clone -b develop 'ssh://git@github.com/rdk-e/linux_binder_idl.git'
+## Reference Documents
 
-cd linux_binder_idl
-
-./build-linux-binder-aidl.sh 64
-```
-
-### 2. Build this test
-
-Clone and build the test suite:
-
-```bash
-git clone git@github.com:rdkcentral/rdk-halif-binder-test-avbuffer.git
-```
-
-```bash
-cd rdk-halif-binder-test-avbuffer
-```
-
-Addition environment variables can be used:
-
-- AIDL_BIN: Path to the `AIDL` compiler (e.g., /path/to/linux_binder_idl/out/aidl).
-
-- LINUX_BINDER_OUT_DIR: Path to the Linux binder output directory (e.g., /path/to/linux_binder_idl/local).
-
-- UT_CORE_VERSION: Specific version of the UT-Core framework (e.g., 4.7.0). Defaults to the latest tagged version.
-
-- RDK_HALIF_AIDL_VERSION: Specific version of the AIDL HAL Specification (e.g, 0.7.1). Defaults to the latest HEAD.
-
-Example:
-
-```bash
-export UT_CORE_VERSION=4.7.0
-export RDK_HALIF_AIDL_VERSION=0.7.1
-export AIDL_BIN=/path/linux_binder_idl/out/aidl
-export LINUX_BINDER_OUT_DIR=/path//linux_binder_idl/local/
-```
-
-By default, UT logs are Enabled. To disable them, Set below environment variable
-
-```bash
-export DISABLE_UT_INFO_LOGGING=1
-```
-
-Run the build script:
-
-```bash
-./build.sh all
-```
-
-The build.sh script:
-
-- Clones the `rdk-halif-aidl` repository and UT-Core framework.
-
-- Compiles the test suite.
-
-- Generates binaries in the `build/bin` directory.
-
-Example directory structure :
-
-```bash
-build/bin/
-├── aidl
-├── MockAVbufferService
-├── lib
-├── libaudiodecoderaidl.so
-├── libavbufferaidl.so
-├── libbase.so
-├── libbinder.so
-├── libcutils.so
-├── libcutils_sockets.so
-├── libhal_logger.so
-├── liblog.so
-├── libut_control.so
-├── libutils.so
-    ├── libvideodecoderaidl.so
-├── profiles
-│   └── hfp-avbuffer.yaml
-├── run.sh
-├── servicemanager
-└── vts_avbuffer_hal_test
-
-```
-
-## Run test
-
-- Package the Binaries:
-
-```bash
-cd build
-tar -zcf avbuffer_vts.tar.gz bin
-```
-
-- Transfer to Target Device:
-
-Copy the tarball to the target device (e.g., using scp):
-
-```bash
-scp avbuffer_vts.tar.gz root@target-device:/home/root/
-```
-
-- Extract on Target Device:
-
-Log into the target device and extract the tarball:
-
-```bash
-ssh root@target-device
-cd /home/root
-tar -zxf avbuffer_vts.tar.gz
-cd bin
-```
-
-- Run the Test:
-Execute the run.sh script as root:
-
-```bash
-sudo ./run.sh -p profiles/hfp-avbuffer.yaml
-```
+|SNo|Document Name|Document Description|Document Link|
+|---|-------------|--------------------|-------------|
+|1|High Level Test Specification Document|High Level Test Specification Documentation this module|[avbuffer_High-Level_TestSpecification.md](docs/pages/avbuffer_High-Level_TestSpecification.md)|
+|2|`L3` L3 Low Level Test Specification and Procedure Document|`L3` Test Specification and Procedure Documentation|[avbuffer_L3_Low-Level_TestSpecification.md](docs/pages/avbuffer_L3_Low-Level_TestSpecification.md)|
