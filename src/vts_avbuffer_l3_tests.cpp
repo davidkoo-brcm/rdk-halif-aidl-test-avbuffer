@@ -232,7 +232,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             bool isValidResult = false;
             bool isSpaceAvailable = false;
             bool secureHeap = false;
-            int64_t bufferHandle;
+            int64_t bufferHandle = IAVBuffer::INVALID_HANDLE;
             void* mapBuffer =  NULL;
             uint32_t mapSize = 0;
             int32_t sizeUsed = 0;
@@ -375,7 +375,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     }
                 }
             }
-            else if(testSelection & VIDEO_TEST)
+            if(testSelection & VIDEO_TEST)
             {
                 if(!isConcurrent){
                     for(const auto& _decoderId: sVideoDecoderIds)
