@@ -3,7 +3,7 @@
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
  *
- * Copyright 2024 RDK Management
+ * Copyright 2025 RDK Management
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 
 #include "vts_avbuffer_parse_hfp.h"
 #include "vts_avbuffer.h"
-#include "IAVBufferHelper.h"
+#include "avbufferhelper.h"
 
 #include "com/rdk/hal/audiodecoder/BpAudioDecoderManager.h"
 #include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"

@@ -85,7 +85,7 @@ namespace com {
                 {
                     std::lock_guard<std::mutex> lock(poolMutex);
                     int32_t found = 0;
-                    _aidl_return->handle = Pool::INVALID;
+                    _aidl_return->handle = Pool::INVALID_POOL;
 
                     // Check if decoder ID is invalid
                     if (videoDecoderId.value == IVideoDecoder::Id::UNDEFINED)
@@ -150,7 +150,7 @@ namespace com {
                 {
                     std::lock_guard<std::mutex> lock(poolMutex);
                     int32_t found = 0;
-                    _aidl_return->handle = Pool::INVALID;
+                    _aidl_return->handle = Pool::INVALID_POOL;
 
                     if (audioDecoderId.value != IAudioDecoder::Id::UNDEFINED)
                     {
@@ -212,7 +212,7 @@ namespace com {
 
                 Status AVBuffer::destroyPool(const Pool& poolHandle, bool* _aidl_return)
                 {
-                    if (poolHandle.handle == Pool::INVALID)
+                    if (poolHandle.handle == Pool::INVALID_POOL)
                     {
                         *_aidl_return = false;
                         return Status::ok();
@@ -250,7 +250,7 @@ namespace com {
 
                 Status AVBuffer::getPoolMetrics(const Pool& poolHandle, PoolMetrics* _aidl_return)
                 {
-                    if (poolHandle.handle == Pool::INVALID)
+                    if (poolHandle.handle == Pool::INVALID_POOL)
                     {
                         return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
@@ -281,9 +281,9 @@ namespace com {
 
                 Status AVBuffer::alloc(const Pool& poolHandle, int32_t size, int64_t* _aidl_return)
                 {
-                    *_aidl_return = Pool::INVALID;
+                    *_aidl_return = Pool::INVALID_POOL;
 
-                    if(size <= 0 || poolHandle.handle == Pool::INVALID)
+                    if(size <= 0 || poolHandle.handle == Pool::INVALID_POOL)
                     {
                         return Status::ok();
                     }
