@@ -260,26 +260,30 @@ class VTS_L3_AVBuffer : public virtual UTCore
             UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
             if (testConfig & ALLOCATE_TEST)
             {
-                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, ((sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed)), bufferHandle);
+                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, (sPoolMetrics.bytesTotal), bufferHandle);
                 AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, bufferHandle, isValidResult);
-                UT_ASSERT_TRUE(isValidResult);
+                if(!isValidResult)
+                {
+                    UT_LOG_ERROR("No Valid Handle Available bufferHandle [0x%016" PRIx64 "]. Cannot Proceed to next step.",bufferHandle);
+                }
+                UT_ASSERT_TRUE_FATAL(isValidResult);
                 {
                     std::lock_guard<std::mutex> lock(sResourceMutex);
                     sBufferHandles.push_back(bufferHandle);
                 }
-                sizeUsed = sPoolMetrics.bytesUsed + (sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed);
+                sizeUsed = sPoolMetrics.bytesTotal;
                 sizeFree = 0;
                 checkMetrics(pool, sizeFree, sizeUsed);
             }
             if (testConfig & NOTIFY_TEST)
             {
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, pool, (sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed) / 2);
+                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, pool, (sPoolMetrics.bytesTotal) / 2);
             }
             if ((testConfig & TRIM_TEST) || (testConfig & NOTIFY_TEST))
             {
                 AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, bufferHandle, (sizeUsed) / 2);
-                sizeUsed = sizeUsed / 2;
                 sizeFree = sizeUsed / 2;
+                sizeUsed = sizeUsed / 2;
                 checkMetrics(pool, sizeFree, sizeUsed);
             }
 

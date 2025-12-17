@@ -206,8 +206,11 @@ do { \
                     pool.handle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_FALSE(Status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if(status.isOk()) \
+        { \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
     } while (0)
 
 #define AVBUFFER_GETPOOL_METRICS_SUCCESS(avBufferManager, pool, poolMetrics) \
@@ -262,8 +265,10 @@ do { \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if(status.isOk()){ \
+            UT_ASSERT_EQUAL(bufferHandle,IAVBuffer::INVALID_HANDLE); \
+        } \
     } while (0)
 
 #define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
@@ -289,8 +294,10 @@ do { \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if(status.isOk()){ \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
     } while (0)
 
     #define AVBUFFER_NOTIFYSPACE_SUCCESS(avBufferManager, pool, size) \
@@ -341,8 +348,10 @@ do { \
         UT_LOG_INFO("Result trimSize(IN:bufferHandle:[0x%016" PRIx64 "], IN:newSize:[%d], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
                     bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if(status.isOk()){ \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
     } while (0)
 
 #define AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult) \
