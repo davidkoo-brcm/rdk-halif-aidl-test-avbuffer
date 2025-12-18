@@ -207,8 +207,7 @@ do { \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        if(status.isOk()) \
-        { \
+        if(status.isOk()) { \
             UT_ASSERT_FALSE(_aidl_return); \
         } \
     } while (0)
@@ -266,8 +265,8 @@ do { \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        if(status.isOk()){ \
-            UT_ASSERT_EQUAL(bufferHandle,IAVBuffer::INVALID_HANDLE); \
+        if(status.isOk()) { \
+            UT_ASSERT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
         } \
     } while (0)
 
@@ -295,7 +294,7 @@ do { \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        if(status.isOk()){ \
+        if(status.isOk()) { \
             UT_ASSERT_FALSE(_aidl_return); \
         } \
     } while (0)
@@ -349,7 +348,7 @@ do { \
                     bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        if(status.isOk()){ \
+        if(status.isOk()) { \
             UT_ASSERT_FALSE(_aidl_return); \
         } \
     } while (0)

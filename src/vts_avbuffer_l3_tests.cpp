@@ -264,7 +264,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, bufferHandle, isValidResult);
                 if(!isValidResult)
                 {
-                    UT_LOG_ERROR("No Valid Handle Available bufferHandle [0x%016" PRIx64 "]. Cannot Proceed to next step.",bufferHandle);
+                    UT_LOG_ERROR("No valid handle available: bufferHandle [0x%016" PRIx64 "]. Cannot proceed to next step.", bufferHandle);
                 }
                 UT_ASSERT_TRUE_FATAL(isValidResult);
                 {
