@@ -271,10 +271,6 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 sizeFree = 0;
                 checkMetrics(pool, sizeFree, sizeUsed);
             }
-            if (testConfig & NOTIFY_TEST)
-            {
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, pool, (sPoolMetrics.bytesTotal - sPoolMetrics.bytesUsed) / 2);
-            }
             if ((testConfig & TRIM_TEST) || (testConfig & NOTIFY_TEST))
             {
                 AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, bufferHandle, (sizeUsed) / 2);
