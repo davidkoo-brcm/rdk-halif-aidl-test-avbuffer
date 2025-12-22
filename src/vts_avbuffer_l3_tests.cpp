@@ -278,8 +278,8 @@ class VTS_L3_AVBuffer : public virtual UTCore
             if ((testConfig & TRIM_TEST) || (testConfig & NOTIFY_TEST))
             {
                 AVBUFFER_TRIMSIZE_SUCCESS(gAVBufferManager, bufferHandle, (sizeUsed) / 2);
-                sizeUsed = sizeUsed / 2;
                 sizeFree = sizeUsed / 2;
+                sizeUsed = sizeUsed / 2;
                 checkMetrics(pool, sizeFree, sizeUsed);
             }
 
