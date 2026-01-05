@@ -209,11 +209,11 @@ do { \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if(status.exceptionCode() == Status::EX_NONE) \
         { \
-            UT_ASSERT_TRUE(status.isOK()); \
+            UT_ASSERT_TRUE(status.isOk()); \
             UT_ASSERT_FALSE(_aidl_return); \
         } \
         else { \
-            UT_ASSERT_FALSE(status.isOK()); \
+            UT_ASSERT_FALSE(status.isOk()); \
         } \
     } while (0)
 
@@ -271,11 +271,11 @@ do { \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if(status.exceptionCode() == Status::EX_NONE){ \
-            UT_ASSERT_TRUE(status.isOK()); \
+            UT_ASSERT_TRUE(status.isOk()); \
             UT_ASSERT_EQUAL(bufferHandle,IAVBuffer::INVALID_HANDLE); \
         } \
         else { \
-            UT_ASSERT_FALSE(status.isOK()); \
+            UT_ASSERT_FALSE(status.isOk()); \
         } \
     } while (0)
 
@@ -304,11 +304,11 @@ do { \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if(status.exceptionCode() == Status::EX_NONE){ \
-            UT_ASSERT_TRUE(status.isOK()); \
+            UT_ASSERT_TRUE(status.isOk()); \
             UT_ASSERT_FALSE(_aidl_return); \
         } \
         else { \
-            UT_ASSERT_FALSE(status.isOK()); \
+            UT_ASSERT_FALSE(status.isOk()); \
         } \
     } while (0)
 
@@ -362,11 +362,11 @@ do { \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if(status.exceptionCode() == Status::EX_NONE){ \
-            UT_ASSERT_TRUE(status.isOK()); \
+            UT_ASSERT_TRUE(status.isOk()); \
             UT_ASSERT_FALSE(_aidl_return); \
         } \
         else { \
-            UT_ASSERT_FALSE(status.isOK()); \
+            UT_ASSERT_FALSE(status.isOk()); \
         } \
     } while (0)
 
