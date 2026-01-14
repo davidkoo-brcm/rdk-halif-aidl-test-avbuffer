@@ -143,10 +143,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getHeapMetrics_pos)
  * **Test Procedure:**@n
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
- * | 01 | Retrieve video decoder IDs from YAML configuration | videodecoder_count_path = "IVideoDecoderManager.IVideoDecoder" | expectedCount > 0 | Should be successful |
+ * | 01 | Retrieve video decoder IDs from YAML configuration | videodecoder_count_path = "videodecoder.IVideoDecoder" | expectedCount > 0 | Should be successful |
  * | 02 | Loop through each video decoder ID | index = 0 to expectedCount - 1 | _videoDecoderId = UT_KVP_PROFILE_GET_UINT8(videodecoderidpath.c_str()) | Should be successful |
  * | 03 | Create a valid listener | listener = new AVBufferSpaceListener() | listener is valid | Should be successful |
- * | 04 | Test secure pool creation | secureHeap = UT_KVP_PROFILE_GET_BOOL("IAVBuffer.supportsSecure"), videoDecoderId = _videoDecoderId, listener = listener | status.isOk() == true, videoPool.handle != Pool::INVALID_POOL | Should Pass |
+ * | 04 | Test secure pool creation | secureHeap = UT_KVP_PROFILE_GET_BOOL("avbuffer.supportsSecure"), videoDecoderId = _videoDecoderId, listener = listener | status.isOk() == true, videoPool.handle != Pool::INVALID_POOL | Should Pass |
  * | 05 | Test non-secure pool creation | secureHeap = false, videoDecoderId = _videoDecoderId, listener = listener | status.isOk() == true, videoPool.handle != Pool::INVALID_POOL | Should Pass |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
@@ -855,10 +855,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
  * | 01 | Initialize invalid pool handle | invalidPool.handle = Pool::INVALID_POOL | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
- * | 02 | Call alloc with invalid pool handle | poolHandle = invalidPool.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes) | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
+ * | 02 | Call alloc with invalid pool handle | poolHandle = invalidPool.handle, size = UT_KVP_PROFILE_GET_UINT32(avbuffer.nonSecureHeapBytes) | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
  * | 03 | Initialize valid video pool handle | validVideoPool.handle = videoPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
  * | 04 | Initialize valid audio pool handle | validaudioPool.handle = aideoPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
- * | 05 | Call alloc with size greater than pool capacity | poolHandle = validVideoPool.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes) + 1 | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
+ * | 05 | Call alloc with size greater than pool capacity | poolHandle = validVideoPool.handle, size = UT_KVP_PROFILE_GET_UINT32(avbuffer.nonSecureHeapBytes) + 1 | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
  * | 06 | Initialize valid audio pool handle | validAudioPool.handle = mAudioPool.handle | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should be successful |
  * | 07 | Call alloc with zero size | poolHandle = validAudioPool.handle, size = 0 | bufferHandle = IAVBuffer::INVALID_HANDLE, status.isOk() = false | Should Fail |
  */
@@ -931,7 +931,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
  * | :----: | --------- | ---------- |-------------- | ----- |
  * | 01 | Ensure gAVBufferManager is available and pool is created | gAVBufferManager = valid, videoPool = created | Service should be available | Should be successful |
  * | 02 | Create a video pool with secure heap | secureHeap = true, videoDecoderId = _videoDecoderId, listener = AVBufferSpaceListener | Video pool should be created successfully | Should be successful |
- * | 03 | Test Case 1: Notify when space is available with valid pool handle and size | poolHandle = videoPool.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes), aidl_return = false | status.isOk() = true, aidl_return = true | Should Pass |
+ * | 03 | Test Case 1: Notify when space is available with valid pool handle and size | poolHandle = videoPool.handle, size = UT_KVP_PROFILE_GET_UINT32(avbuffer.nonSecureHeapBytes), aidl_return = false | status.isOk() = true, aidl_return = true | Should Pass |
  * | 04 | Test Case 2: Notify when space is available with minimum valid size | poolHandle = videoPool.handle, size = 1, aidl_return = false | status.isOk() = true, aidl_return = true | Should Pass |
  * | 05 | Clean up: Destroy the video pool | videoPool = valid, secureHeap = true | Pool should be destroyed successfully | Done by Pre-requisite TearDown function |
  */
@@ -987,8 +987,8 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_pos)
  * **Test Procedure:**@n
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
- * | 01 | Call notifyWhenSpaceAvailable with an invalid pool handle | poolHandle = INVALID, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes), aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
- * | 02 | Call notifyWhenSpaceAvailable with a size that exceeds pool capacity | poolHandle = validPoolHandle.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes) + 1, aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
+ * | 01 | Call notifyWhenSpaceAvailable with an invalid pool handle | poolHandle = INVALID, size = UT_KVP_PROFILE_GET_UINT32(avbuffer.nonSecureHeapBytes), aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
+ * | 02 | Call notifyWhenSpaceAvailable with a size that exceeds pool capacity | poolHandle = validPoolHandle.handle, size = UT_KVP_PROFILE_GET_UINT32(avbuffer.nonSecureHeapBytes) + 1, aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
  * | 03 | Call notifyWhenSpaceAvailable with zero size | poolHandle = validPoolHandle.handle, size = 0, aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
