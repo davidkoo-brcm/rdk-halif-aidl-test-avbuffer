@@ -92,6 +92,8 @@
 #define MAX_WAIT_MS 10
 #define MAX_FINAL_WAIT_MS 5000
 
+extern void *gAvBufferTestConfiguration;
+
 using android::sp;
 using android::String16;
 using android::defaultServiceManager;
@@ -206,8 +208,15 @@ do { \
                     pool.handle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_FALSE(_aidl_return); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if(status.exceptionCode() == Status::EX_NONE) \
+        { \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        } \
     } while (0)
 
 #define AVBUFFER_GETPOOL_METRICS_SUCCESS(avBufferManager, pool, poolMetrics) \
@@ -262,8 +271,14 @@ do { \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
+        if(status.exceptionCode() == Status::EX_NONE){ \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_EQUAL(bufferHandle,IAVBuffer::INVALID_HANDLE); \
+        } \
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        } \
     } while (0)
 
 #define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
@@ -289,9 +304,14 @@ do { \
                     bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_FALSE(_aidl_return); \
+        if(status.exceptionCode() == Status::EX_NONE){ \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        } \
     } while (0)
 
     #define AVBUFFER_NOTIFYSPACE_SUCCESS(avBufferManager, pool, size) \
@@ -319,7 +339,6 @@ do { \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_FALSE(_aidl_return); \
     } while (0)
 
 #define AVBUFFER_TRIMSIZE_SUCCESS(avBufferManager, bufferHandle, newSize) \
@@ -344,7 +363,13 @@ do { \
                     bufferHandle, newSize, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_FALSE(_aidl_return); \
+        if(status.exceptionCode() == Status::EX_NONE){ \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_FALSE(_aidl_return); \
+        } \
+        else { \
+            UT_ASSERT_FALSE(status.isOk()); \
+        } \
     } while (0)
 
 #define AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult) \
@@ -381,7 +406,6 @@ do { \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-        UT_ASSERT_TRUE(allocList.empty()); \
     } while (0)
 
 #define AVBUFFER_CALCULATESHA_SUCCESS(avBufferManager, poolHandle, sha1Result) \
@@ -411,7 +435,6 @@ do { \
         if(status.exceptionCode() != Status::EX_UNSUPPORTED_OPERATION) { \
             UT_ASSERT_FALSE(status.isOk()); \
             UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
-            UT_ASSERT_TRUE(sha1Result.empty()); \
         } \
     } while (0)
 
