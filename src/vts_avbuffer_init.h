@@ -67,6 +67,8 @@
 
 UT_status_t VTS_AVBuffer_init();
 
+void VTS_AvBuffer_destroy();
+
 #endif //__VTS_AVBUFFER_INIT_H__
 
 /** @} */ // End of AV_BUFFER_HALTEST_INIT_HEADER
