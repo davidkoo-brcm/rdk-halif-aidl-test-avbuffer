@@ -22,6 +22,16 @@
 
 # HAL Feature Profile for avbuffer
 
+IVideoDecoderManager:
+  IVideoDecoder:
+    - {}  # Decoder ID 0
+    - {}  # Decoder ID 1
+
+IAudioDecoderManager:
+  IAudioDecoder:
+    - {}  # Decoder ID 0
+    - {}  # Decoder ID 1
+
 IAVBuffer:
   interfaceVersion: current
   nonSecureHeapBytes: 28311552
