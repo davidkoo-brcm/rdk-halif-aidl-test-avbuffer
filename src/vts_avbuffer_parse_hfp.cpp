@@ -85,24 +85,41 @@ UT_status_t vts_avbuffer_parseAVBufferHFP()
         return UT_STATUS_FAILURE;
     }
 
+    // Parse video decoder IDs - the IDs are the keys themselves (0, 1, etc.)
     for (int index = 0; index < videoCount; ++index)
     {
-        std::string videodecoderidpath = VIDEODECODER_PATH  "." + std::to_string(index) + ".ID";
-        int32_t _videoDecoderId = UT_KVP_PROFILE_GET_UINT8(videodecoderidpath.c_str());
-        gAVBuffer_hfp.videoDecoderId.push_back(_videoDecoderId);
+        gAVBuffer_hfp.videoDecoderId.push_back(index);
     }
 
     std::sort(gAVBuffer_hfp.videoDecoderId.begin(), gAVBuffer_hfp.videoDecoderId.end());
 
+    // Log video decoder information
+    UT_LOG_INFO("Found %d video decoder(s)", videoCount);
+    std::string videoIds = "Video Decoder IDs: ";
+    for (size_t i = 0; i < gAVBuffer_hfp.videoDecoderId.size(); ++i)
+    {
+        videoIds += std::to_string(gAVBuffer_hfp.videoDecoderId[i]);
+        if (i < gAVBuffer_hfp.videoDecoderId.size() - 1) videoIds += ", ";
+    }
+    UT_LOG_INFO("%s", videoIds.c_str());
+
+    // Parse audio decoder IDs - the IDs are the keys themselves (0, 1, etc.)
     for (int index = 0; index < audioCount; ++index)
     {
-        std::string audiodecoderidpath = AUDIODECODER_PATH  "." + std::to_string(index) + ".id";
-
-        int32_t _audioDecoderId = UT_KVP_PROFILE_GET_UINT8(audiodecoderidpath.c_str());
-        gAVBuffer_hfp.audioDecoderId.push_back(_audioDecoderId);
+        gAVBuffer_hfp.audioDecoderId.push_back(index);
     }
 
     std::sort(gAVBuffer_hfp.audioDecoderId.begin(), gAVBuffer_hfp.audioDecoderId.end());
+
+    // Log audio decoder information
+    UT_LOG_INFO("Found %d audio decoder(s)", audioCount);
+    std::string audioIds = "Audio Decoder IDs: ";
+    for (size_t i = 0; i < gAVBuffer_hfp.audioDecoderId.size(); ++i)
+    {
+        audioIds += std::to_string(gAVBuffer_hfp.audioDecoderId[i]);
+        if (i < gAVBuffer_hfp.audioDecoderId.size() - 1) audioIds += ", ";
+    }
+    UT_LOG_INFO("%s", audioIds.c_str());
 
     gAVBuffer_hfp.nonSecureHeapBytes = UT_KVP_PROFILE_GET_UINT32(AVBUFFER_NONSECURESIZE_PATH);
     gAVBuffer_hfp.secureHeapBytes = UT_KVP_PROFILE_GET_UINT32(AVBUFFER_SECURESIZE_PATH);
