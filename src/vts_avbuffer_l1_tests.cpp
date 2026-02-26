@@ -899,8 +899,8 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
         AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
 
         // Test Case 2: Size Greater Than Pool Capacity
-        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, videobufferHandle, Status::EX_SERVICE_SPECIFIC);
-        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, audioBufferHandle, Status::EX_SERVICE_SPECIFIC);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, videobufferHandle, Status::EX_NONE);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, audioBufferHandle, Status::EX_NONE);
 
         // Test Case 3: Zero Size Allocation
         AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, 0, videobufferHandle, Status::EX_NONE);
@@ -987,9 +987,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_pos)
  * **Test Procedure:**@n
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
- * | 01 | Call notifyWhenSpaceAvailable with an invalid pool handle | poolHandle = INVALID, size = UT_KVP_PROFILE_GET_UINT32(avbuffer.nonSecureHeapBytes), aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
- * | 02 | Call notifyWhenSpaceAvailable with a size that exceeds pool capacity | poolHandle = validPoolHandle.handle, size = UT_KVP_PROFILE_GET_UINT32(avbuffer.nonSecureHeapBytes) + 1, aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
- * | 03 | Call notifyWhenSpaceAvailable with zero size | poolHandle = validPoolHandle.handle, size = 0, aidl_return = false | status.isOk() = false, aidl_return = false | Should Fail |
+ * | 01 | Call notifyWhenSpaceAvailable with an invalid pool handle | poolHandle = INVALID, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes), aidl_return = false | status.isOk() = True, aidl_return = false | Should Fail |
+ * | 02 | Call notifyWhenSpaceAvailable with a size that exceeds pool capacity | poolHandle = validPoolHandle.handle, size = UT_KVP_PROFILE_GET_UINT32(IAVBuffer.nonSecureHeapBytes) + 1, aidl_return = false | status.isOk() = True, aidl_return = false | Should Fail |
+ * | 03 | Call notifyWhenSpaceAvailable with zero size | poolHandle = validPoolHandle.handle, size = 0, aidl_return = false | status.isOk() = True, aidl_return = false | Should Fail |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
 {
@@ -1009,7 +1009,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
     // Test Case 1: Invalid Pool Handle
-    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, invalidPool, size, Status::EX_ILLEGAL_ARGUMENT);
+    AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, invalidPool, size, Status::EX_NONE);
 
     for (bool secureHeap : {true, false})
     {
@@ -1025,12 +1025,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, notifyWhenSpaceAvailable_neg)
         AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
 
         // Test Case 2: Size Exceeds Pool Capacity
-        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, Status::EX_ILLEGAL_ARGUMENT);
-        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, Status::EX_ILLEGAL_ARGUMENT);
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, Status::EX_NONE);
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, Status::EX_NONE);
 
         // Test Case 3: Zero Size
-        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, 0, Status::EX_ILLEGAL_ARGUMENT);
-        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, 0, Status::EX_ILLEGAL_ARGUMENT);
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, videoPool, 0, Status::EX_NONE);
+        AVBUFFER_NOTIFYSPACE_FAILURE(gAVBufferManager, audioPool, 0, Status::EX_NONE);
 
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
@@ -1151,7 +1151,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    // Negative Scenario - Invalid bufferHandle (not last allocated)
+    // Negative Scenario - Invalid bufferHandle
     AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, invalidBufferHandle, new_size, Status::EX_NONE);
 
     for (bool secureHeap : {true, false})
