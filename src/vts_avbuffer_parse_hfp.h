@@ -82,11 +82,11 @@ typedef struct avbuffer
     bool supportSHA1;
 }avbuffer_t;
 
-#define VIDEODECODER_PATH "IVideoDecoderManager.IVideoDecoder"
-#define AUDIODECODER_PATH "IAudioDecoderManager.IAudioDecoder"
-#define AVBUFFER_SECURESIZE_PATH "IAVBuffer.secureHeapBytes"
-#define AVBUFFER_NONSECURESIZE_PATH "IAVBuffer.nonSecureHeapBytes"
-#define AVBUFFER_SHA1_PATH "IAVBuffer.supportsSHA1"
+#define VIDEODECODER_PATH "videodecoder.IVideoDecoder"
+#define AUDIODECODER_PATH "audiodecoder.IAudioDecoder"
+#define AVBUFFER_SECURESIZE_PATH "avbuffer.secureHeapBytes"
+#define AVBUFFER_NONSECURESIZE_PATH "avbuffer.nonSecureHeapBytes"
+#define AVBUFFER_SHA1_PATH "avbuffer.supportsSHA1"
 
 extern avbuffer_t gAVBuffer_hfp;
 
