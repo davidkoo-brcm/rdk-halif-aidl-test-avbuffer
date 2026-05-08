@@ -104,6 +104,18 @@ namespace com {
                     {
                         return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
+
+                    // Get-or-create: return existing pool for the same (secureHeap, decoderId) key
+                    auto videoKey = std::make_pair(secureHeap, videoDecoderId.value);
+                    auto keyIt = videoPoolKeyMap.find(videoKey);
+                    if (keyIt != videoPoolKeyMap.end())
+                    {
+                        _aidl_return->handle = keyIt->second;
+                        std::cout << "[SERVICE] Returning existing video pool with handle: "
+                                  << static_cast<int>(keyIt->second) << std::endl;
+                        return Status::ok();
+                    }
+
                     // Check for available memory and create pool
                     if (secureHeap)
                     {
@@ -136,8 +148,11 @@ namespace com {
                     InternalPoolInfo poolInfo;
                     poolInfo.metrics = metrics;
                     poolInfo.isSecure = secureHeap;
+                    poolInfo.isVideo = true;
+                    poolInfo.decoderId = videoDecoderId.value;
 
                     poolMetricsMap[handle] = poolInfo;
+                    videoPoolKeyMap[videoKey] = handle;
 
                     std::cout << "[SERVICE] Created " << (secureHeap ? "secure" : "non-secure")
                               << " video pool with handle: " << static_cast<int>(handle) << std::endl;
@@ -166,6 +181,17 @@ namespace com {
                         {
                             return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                         }
+                    }
+
+                    // Get-or-create: return existing pool for the same (secureHeap, decoderId) key
+                    auto audioKey = std::make_pair(secureHeap, audioDecoderId.value);
+                    auto keyIt = audioPoolKeyMap.find(audioKey);
+                    if (keyIt != audioPoolKeyMap.end())
+                    {
+                        _aidl_return->handle = keyIt->second;
+                        std::cout << "[SERVICE] Returning existing audio pool with handle: "
+                                  << static_cast<int>(keyIt->second) << std::endl;
+                        return Status::ok();
                     }
 
                     // Check for available memory and create pool
@@ -200,8 +226,11 @@ namespace com {
                     InternalPoolInfo poolInfo;
                     poolInfo.metrics = metrics;
                     poolInfo.isSecure = secureHeap;
+                    poolInfo.isVideo = false;
+                    poolInfo.decoderId = audioDecoderId.value;
 
                     poolMetricsMap[handle] = poolInfo;
+                    audioPoolKeyMap[audioKey] = handle;
 
                     std::cout << "[SERVICE]Created " << (secureHeap ? "secure" : "non-secure")
                               << " audio pool with handle: " << static_cast<int>(handle) << std::endl;
@@ -241,6 +270,13 @@ namespace com {
                     {
                         this->totalNonSecureBytesUsed -= poolInfo.metrics.bytesTotal;
                     }
+
+                    // Erase from the key lookup map so a subsequent create allocates a fresh pool
+                    auto poolKey = std::make_pair(poolInfo.isSecure, poolInfo.decoderId);
+                    if (poolInfo.isVideo)
+                        videoPoolKeyMap.erase(poolKey);
+                    else
+                        audioPoolKeyMap.erase(poolKey);
 
                     // Erase pool info from map
                     poolMetricsMap.erase(it);

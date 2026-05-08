@@ -27,9 +27,11 @@
 #define AV_BUFFER_H
 
 #include <binder/BinderService.h>
+#include <map>
 #include <optional>
 #include <string>
 #include <utils/StrongPointer.h>
+#include <utility>
 #include <vector>
 #include <mutex>
 #include <condition_variable>
@@ -68,6 +70,8 @@ namespace com {
                     struct InternalPoolInfo {
                         PoolMetrics metrics;
                         bool isSecure;
+                        bool isVideo;
+                        int32_t decoderId;
                     };
 
                     struct BufferInfo {
@@ -85,6 +89,8 @@ namespace com {
                     std::unordered_map<uint8_t, InternalPoolInfo> poolMetricsMap;
                     std::unordered_map<int64_t, BufferInfo> bufferMap;
                     std::unordered_map<uint8_t, std::vector<int64_t>> poolAllocations;
+                    std::map<std::pair<bool, int32_t>, uint8_t> videoPoolKeyMap;
+                    std::map<std::pair<bool, int32_t>, uint8_t> audioPoolKeyMap;
                     android::sp<IAVBufferSpaceListener> spaceListener;
 
                     std::mutex poolMutex;

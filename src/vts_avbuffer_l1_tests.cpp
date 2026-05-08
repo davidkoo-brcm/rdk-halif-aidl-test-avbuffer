@@ -183,6 +183,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool2);
         UT_ASSERT_EQUAL(videoPool2.handle, videoPool.handle);
+        if (videoPool2.handle != videoPool.handle)
+        {
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool2);
+        }
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
 
         // Test 4: Idempotency - calling createVideoPool again with the same (secureHeap=true, decoderId)
@@ -193,6 +197,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
             AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
             AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool2);
             UT_ASSERT_EQUAL(videoPool2.handle, videoPool.handle);
+            if (videoPool2.handle != videoPool.handle)
+            {
+                AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool2);
+            }
             AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
         }
     }
@@ -318,6 +326,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool2);
         UT_ASSERT_EQUAL(audioPool2.handle, audioPool.handle);
+        if (audioPool2.handle != audioPool.handle)
+        {
+            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool2);
+        }
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
 
         // Test Case 5: Idempotency - calling createAudioPool again with the same (secureHeap=true, decoderId)
@@ -328,6 +340,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
             AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
             AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool2);
             UT_ASSERT_EQUAL(audioPool2.handle, audioPool.handle);
+            if (audioPool2.handle != audioPool.handle)
+            {
+                AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool2);
+            }
             AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
         }
     }
