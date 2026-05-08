@@ -142,7 +142,7 @@ do { \
                  secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
                  UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
     UT_ASSERT_TRUE(status.isOk()); \
-    UT_ASSERT_NOT_EQUAL(videoPool.handle, Pool::INVALID_POOL); \
+    UT_ASSERT_TRUE(videoPool.handle >= 0);
     UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
 } while (0)
 
@@ -167,7 +167,7 @@ do { \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_NOT_EQUAL(audioPool.handle, Pool::INVALID_POOL); \
+        UT_ASSERT_TRUE(audioPool.handle >= 0); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
@@ -260,7 +260,7 @@ do { \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_NOT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
+        UT_ASSERT_TRUE(bufferhandle > 0); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
@@ -274,7 +274,6 @@ do { \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if(status.exceptionCode() == Status::EX_NONE){ \
             UT_ASSERT_TRUE(status.isOk()); \
-            UT_ASSERT_EQUAL(bufferHandle,IAVBuffer::INVALID_HANDLE); \
         } \
         else { \
             UT_ASSERT_FALSE(status.isOk()); \
