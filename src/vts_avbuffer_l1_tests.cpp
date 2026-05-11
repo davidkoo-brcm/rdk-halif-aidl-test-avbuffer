@@ -762,7 +762,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
             AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, getpoolMetrics);
             UT_ASSERT_GREATER_EQUAL(getpoolMetrics.bytesUsed, size_alloc);
             AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, size_alloc, secondbufferHandle);
-            AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, firstbufferHandle, secondbufferHandle);
+            AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, secondbufferHandle, isValidResult);
             UT_ASSERT_TRUE(isValidResult);
             AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, getpoolMetrics);
             UT_ASSERT_GREATER_EQUAL(getpoolMetrics.bytesUsed, size_alloc+size_alloc);
