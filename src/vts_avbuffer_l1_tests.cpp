@@ -540,7 +540,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_neg)
     // Test Case 1: Invalid Pool Handle
     Pool invalidPool;
     invalidPool.handle = -1;
-    bool isValidResult = false;
 
     /* Test 1: Try to destroy invalid handle*/
     AVBUFFER_DESTROY_POOL_FAILURE(gAVBufferManager, invalidPool, Status::EX_NONE);
@@ -562,12 +561,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, destroyPool_neg)
     AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, gAVBuffer_hfp.supportSecure, audioDecoderId, listener, audioPool);
 
     AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-    UT_ASSERT_TRUE(isValidResult);
-
     AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-    UT_ASSERT_TRUE(isValidResult);
 
     /* Test 2: Try to destroy valid handle but buffers are not freed */
     AVBUFFER_DESTROY_POOL_FAILURE(gAVBufferManager, videoPool, Status::EX_SERVICE_SPECIFIC);
@@ -712,7 +706,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
     PoolMetrics getpoolMetrics;
     int64_t firstbufferHandle;
     int64_t secondbufferHandle;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -757,13 +750,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllPoolMetrics_pos)
             }
 
             AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, size_alloc, firstbufferHandle);
-            AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, firstbufferHandle, isValidResult);
-            UT_ASSERT_TRUE(isValidResult);
             AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, getpoolMetrics);
             UT_ASSERT_GREATER_EQUAL(getpoolMetrics.bytesUsed, size_alloc);
             AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, size_alloc, secondbufferHandle);
-            AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, secondbufferHandle, isValidResult);
-            UT_ASSERT_TRUE(isValidResult);
             AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, getpoolMetrics);
             UT_ASSERT_GREATER_EQUAL(getpoolMetrics.bytesUsed, size_alloc+size_alloc);
             AVBUFFER_FREE_SUCCESS(gAVBufferManager, firstbufferHandle);
@@ -817,7 +806,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -836,13 +824,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_pos)
 
         // Test Case 1: Valid video Pool Handle and Size
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Test Case 2: Valid audio Pool Handle and Size
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Teardown
         AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
@@ -892,7 +876,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -901,8 +884,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
 
     // Test Case 1: Invalid Pool Handle
     AVBUFFER_ALLOC_FAILURE(gAVBufferManager, invalidPool, size, videobufferHandle, Status::EX_NONE);
-    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-    UT_ASSERT_FALSE(isValidResult);
+
 
     for (bool secureHeap : {true, false})
     {
@@ -920,21 +902,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
 
         // Test Case 2: Size Greater Than Pool Capacity
         AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, videobufferHandle, Status::EX_NONE);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_FALSE(isValidResult);
-
         AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, audioBufferHandle, Status::EX_NONE);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_FALSE(isValidResult);
 
         // Test Case 3: Zero Size Allocation
         AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, 0, videobufferHandle, Status::EX_NONE);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_FALSE(isValidResult);
 
         AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, 0, audioBufferHandle, Status::EX_NONE);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_FALSE(isValidResult);
 
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
@@ -1099,7 +1072,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
     int32_t new_size = size;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1117,12 +1089,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
-
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Test Case 1: Positive Scenario - Valid bufferHandle and newSize
         new_size = size - 128;
@@ -1181,7 +1148,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
     int64_t videobufferHandle, videobufferHandle_new;
     int64_t audioBufferHandle, audioBufferHandle_new;
     int64_t invalidBufferHandle = -1;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1202,12 +1168,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
-
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Negative Scenario - Invalid newSize (zero) -  Video buffer handle
         new_size = 0;
@@ -1221,12 +1182,8 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
 
         // Negative Scenario - buffer handle is not last allocated
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle_new);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle_new, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle_new);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle_new, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         new_size = size;
         AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_ILLEGAL_STATE);
@@ -1275,7 +1232,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
     int32_t size = 1024;
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1294,13 +1250,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_pos)
 
         // Test Case 1: Valid video Pool Handle and Size
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Test Case 2: Valid audio Pool Handle and Size
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Teardown
         AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
@@ -1345,7 +1297,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
     int64_t invalidBufferHandle = -1;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1366,12 +1317,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
-
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Teardown
         AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
@@ -1440,14 +1386,9 @@ UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
         AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
+        //Test 1: Test with valid buffer handle
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-
-        //Test 1: Test with valid buffer handle
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         // Teardown
         AVBUFFER_FREE_SUCCESS(gAVBufferManager, videobufferHandle);
@@ -1500,7 +1441,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
     std::vector<int64_t> allocList;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1518,12 +1458,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, getAllocList_pos)
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
-
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         AVBUFFER_GETALLOCLIST_SUCCESS(gAVBufferManager, videoPool, allocList);
         UT_ASSERT_TRUE(allocList.size() == 1);
@@ -1611,7 +1546,6 @@ UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_pos)
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
     std::vector<uint8_t> sha1Result;
-    bool  isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
@@ -1630,12 +1564,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, calculateSHA1_pos)
         AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
 
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, videobufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
-
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, audioPool, size, audioBufferHandle);
-        AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, audioBufferHandle, isValidResult);
-        UT_ASSERT_TRUE(isValidResult);
 
         AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, videobufferHandle, sha1Result);
         AVBUFFER_CALCULATESHA_SUCCESS(gAVBufferManager, audioBufferHandle, sha1Result);

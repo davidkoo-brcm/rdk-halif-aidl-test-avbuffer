@@ -254,18 +254,21 @@ extern sp<IAVBuffer> gAVBufferManager;
 
 #define AVBUFFER_ALLOC_SUCCESS(avBufferManager, pool, size, bufferHandle) \
     do { \
+        bool isValidResult = false; \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_TRUE(bufferHandle > 0); \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult); \
+        UT_ASSERT_TRUE(isValidResult); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
 #define AVBUFFER_ALLOC_FAILURE(avBufferManager, pool, size, bufferHandle, exception) \
     do { \
+        bool isValidResult = false; \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
@@ -274,6 +277,8 @@ extern sp<IAVBuffer> gAVBufferManager;
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if(status.exceptionCode() == Status::EX_NONE){ \
             UT_ASSERT_TRUE(status.isOk()); \
+            AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult); \
+            UT_ASSERT_FALSE(isValidResult); \
         } \
         else { \
             UT_ASSERT_FALSE(status.isOk()); \
