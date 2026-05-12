@@ -411,9 +411,9 @@ extern sp<IAVBuffer> gAVBufferManager;
         UT_LOG_INFO("Calling getAllocList with video pool handle (IN:poolHandle:[%d], OUT:allocList[])", poolHandle.handle); \
         Status status = avBufferManager->getAllocList(poolHandle, &allocList); \
         UT_LOG_INFO("Result getAllocList(IN:poolHandle:[%d], OUT:allocList[size:%zu]), status:[isOK:%s, exception:%s]", \
-                    poolHandle.handle, allocList.size(), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+                     poolHandle.handle, allocList.size(), \
+                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
     } while (0)
