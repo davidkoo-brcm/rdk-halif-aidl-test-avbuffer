@@ -136,11 +136,11 @@ extern sp<IAVBuffer> gAVBufferManager;
 #define AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(avBufferManager, secureHeap, videoDecoderId, listener, videoPool) \
     do { \
         UT_LOG_INFO("Calling createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool)", \
-                        secureHeap, videoDecoderId.value, listener.get()); \
+                    secureHeap, videoDecoderId.value, listener.get()); \
         Status status = avBufferManager->createVideoPool(secureHeap, videoDecoderId, listener, &videoPool); \
         UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
-                        secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
-                        UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+                    secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
         UT_ASSERT_TRUE(videoPool.handle >= 0); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
