@@ -106,16 +106,6 @@ using namespace com::rdk::hal::audiodecoder;
 
 extern sp<IAVBuffer> gAVBufferManager;
 
-#ifndef ENABLE_UT_INFO_LOGGING
-#ifdef UT_LOG_DEBUG
-#undef UT_LOG_DEBUG
-#define UT_LOG_DEBUG(...)
-#endif
-#ifdef UT_LOG_INFO
-#undef UT_LOG_INFO
-#define UT_LOG_INFO(...)
-#endif
-#endif
 
 #define AVBUFFER_GETMETRICS(avBufferManager, secureHeap, heapMetrics) \
     do { \
@@ -134,22 +124,22 @@ extern sp<IAVBuffer> gAVBufferManager;
     } while (0)
 
 #define AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(avBufferManager, secureHeap, videoDecoderId, listener, videoPool) \
-do { \
-    UT_LOG_INFO("Calling createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool)", \
-                 secureHeap, videoDecoderId.value, listener.get()); \
-    Status status = avBufferManager->createVideoPool(secureHeap, videoDecoderId, listener, &videoPool); \
-    UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
-                 secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
-                 UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-    UT_ASSERT_TRUE(status.isOk()); \
-    UT_ASSERT_NOT_EQUAL(videoPool.handle, Pool::INVALID_POOL); \
-    UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-} while (0)
+    do { \
+        UT_LOG_INFO("Calling createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool)", \
+                    secureHeap, videoDecoderId.value, listener.get()); \
+        Status status = avBufferManager->createVideoPool(secureHeap, videoDecoderId, listener, &videoPool); \
+        UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
+                    secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
+                    UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+        UT_ASSERT_TRUE(status.isOk()); \
+        UT_ASSERT_TRUE(videoPool.handle >= 0); \
+        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+    } while (0)
 
 #define AVBUFFER_CREATE_VIDEOPOOL_FAILURE(avBufferManager, secureHeap, videoDecoderId, listener, videoPool, exception) \
     do { \
         UT_LOG_INFO("Calling createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool)", \
-            secureHeap, videoDecoderId.value, listener.get()); \
+                    secureHeap, videoDecoderId.value, listener.get()); \
         Status status = avBufferManager->createVideoPool(secureHeap, videoDecoderId, listener, &videoPool); \
         UT_LOG_INFO("Result createVideoPool(IN:secureHeap:[%d], IN:videoDecoderId:[%d], IN:listener:[%p], OUT:videoPool.handle:[%d]), status:[isOK:%s, exception:%s]", \
                     secureHeap, videoDecoderId.value, listener.get(), videoPool.handle, \
@@ -167,7 +157,7 @@ do { \
                     secureHeap, audioDecoderId.value, listener.get(), audioPool.handle, \
                     UT_Control_GetMapString(bool_mapTable, status.isOk()), UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_NOT_EQUAL(audioPool.handle, Pool::INVALID_POOL); \
+        UT_ASSERT_TRUE(audioPool.handle >= 0); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
@@ -254,18 +244,21 @@ do { \
 
 #define AVBUFFER_ALLOC_SUCCESS(avBufferManager, pool, size, bufferHandle) \
     do { \
+        bool isValidResult = false; \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
                     pool.handle, size, bufferHandle, UT_Control_GetMapString(bool_mapTable, status.isOk()), \
                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_NOT_EQUAL(bufferHandle, IAVBuffer::INVALID_HANDLE); \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult); \
+        UT_ASSERT_TRUE(isValidResult); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
 
 #define AVBUFFER_ALLOC_FAILURE(avBufferManager, pool, size, bufferHandle, exception) \
     do { \
+        bool isValidResult = false; \
         UT_LOG_INFO("Calling alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle)", pool.handle, size); \
         Status status = avBufferManager->alloc(pool, size, &bufferHandle); \
         UT_LOG_INFO("Result alloc(IN:poolHandle:[%d], IN:size:[%d], OUT:bufferHandle:[0x%016" PRIx64 "]), status:[isOK:%s, exception:%s]", \
@@ -274,7 +267,8 @@ do { \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
         if(status.exceptionCode() == Status::EX_NONE){ \
             UT_ASSERT_TRUE(status.isOk()); \
-            UT_ASSERT_EQUAL(bufferHandle,IAVBuffer::INVALID_HANDLE); \
+            AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, isValidResult); \
+            UT_ASSERT_FALSE(isValidResult); \
         } \
         else { \
             UT_ASSERT_FALSE(status.isOk()); \
@@ -407,9 +401,9 @@ do { \
         UT_LOG_INFO("Calling getAllocList with video pool handle (IN:poolHandle:[%d], OUT:allocList[])", poolHandle.handle); \
         Status status = avBufferManager->getAllocList(poolHandle, &allocList); \
         UT_LOG_INFO("Result getAllocList(IN:poolHandle:[%d], OUT:allocList[size:%zu]), status:[isOK:%s, exception:%s]", \
-                    poolHandle.handle, allocList.size(), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+                     poolHandle.handle, allocList.size(), \
+                     UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                     UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
         UT_ASSERT_FALSE(status.isOk()); \
         UT_ASSERT_EQUAL(status.exceptionCode(), exception); \
     } while (0)

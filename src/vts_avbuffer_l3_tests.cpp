@@ -117,7 +117,6 @@ public:
 };
 
 static sp<IAudioDecoderManager> sAudioDecoderManager;
-static PoolMetrics sPoolMetrics;
 static std::vector<IAudioDecoder::Id> sAudioDecoderIds;
 static std::vector<IVideoDecoder::Id> sVideoDecoderIds;
 static std::vector<sp<AVBufferSpaceListener>> sSpaceListeners;
@@ -183,16 +182,18 @@ class VTS_L3_AVBuffer : public virtual UTCore
 
         static void checkMetrics(Pool pool,int32_t sizeFree,int32_t sizeUsed)
         {
-            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,pool,sPoolMetrics);
-            UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
-            UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
-            UT_ASSERT_EQUAL(sPoolMetrics.bytesUsed, sizeUsed);
-            UT_ASSERT_EQUAL(sPoolMetrics.bytesTotal, sizeUsed+sizeFree);
+            PoolMetrics poolMetrics;
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager,pool,poolMetrics);
+            UT_ASSERT_GREATER_EQUAL(poolMetrics.bytesUsed, 0);
+            UT_ASSERT_LESS_EQUAL(poolMetrics.bytesUsed, poolMetrics.bytesTotal);
+            UT_ASSERT_EQUAL(poolMetrics.bytesUsed, sizeUsed);
+            UT_ASSERT_EQUAL(poolMetrics.bytesTotal, sizeUsed+sizeFree);
         }
     public:
         void AvBufferTest(IAudioDecoder::Id _audioDecoderId,IVideoDecoder::Id _videoDecoderId, uint8_t testConfig, uint8_t testSelection)
         {
             Pool pool;
+            PoolMetrics poolMetrics;
             bool isValidResult = false;
             bool isSpaceAvailable = false;
             bool secureHeap = false;
@@ -223,12 +224,12 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 std::lock_guard<std::mutex> lock(sResourceMutex);
                 sPoolsCreated.emplace_back(pool);
             }
-            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, sPoolMetrics);
-            UT_ASSERT_GREATER_EQUAL(sPoolMetrics.bytesUsed, 0);
-            UT_ASSERT_LESS_EQUAL(sPoolMetrics.bytesUsed, sPoolMetrics.bytesTotal);
+            AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, pool, poolMetrics);
+            UT_ASSERT_GREATER_EQUAL(poolMetrics.bytesUsed, 0);
+            UT_ASSERT_LESS_EQUAL(poolMetrics.bytesUsed, poolMetrics.bytesTotal);
             if (testConfig & ALLOCATE_TEST)
             {
-                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, (sPoolMetrics.bytesTotal), bufferHandle);
+                AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, pool, (poolMetrics.bytesTotal), bufferHandle);
                 AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, bufferHandle, isValidResult);
                 if(!isValidResult)
                 {
@@ -239,13 +240,13 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     std::lock_guard<std::mutex> lock(sResourceMutex);
                     sBufferHandles.push_back(bufferHandle);
                 }
-                sizeUsed = sPoolMetrics.bytesTotal;
+                sizeUsed = poolMetrics.bytesTotal;
                 sizeFree = 0;
                 checkMetrics(pool, sizeFree, sizeUsed);
             }
             if (testConfig & NOTIFY_TEST)
             {
-                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, pool, (sPoolMetrics.bytesTotal) / 2);
+                AVBUFFER_NOTIFYSPACE_SUCCESS(gAVBufferManager, pool, (poolMetrics.bytesTotal) / 2);
             }
             if ((testConfig & TRIM_TEST) || (testConfig & NOTIFY_TEST))
             {
