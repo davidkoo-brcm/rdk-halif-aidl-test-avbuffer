@@ -277,16 +277,21 @@ extern sp<IAVBuffer> gAVBufferManager;
 
 #define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
     do { \
-        bool _aidl_return = false; \
-        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return)", bufferHandle); \
-        Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
-                    bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-        UT_ASSERT_TRUE(_aidl_return); \
+        bool _isValidHandle = false; \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, _isValidHandle); \
+        if(_isValidHandle) \
+        { \
+            bool _aidl_return = false; \
+            UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return)", bufferHandle); \
+            Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
+            UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                        bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                        UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                        UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+            UT_ASSERT_TRUE(_aidl_return); \
+        } \
     } while (0)
 
 #define AVBUFFER_FREE_FAILURE(avBufferManager, bufferHandle, exception) \
