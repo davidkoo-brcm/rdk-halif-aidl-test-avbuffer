@@ -352,6 +352,9 @@ extern sp<IAVBuffer> gAVBufferManager;
 
 #define AVBUFFER_TRIMSIZE_SUCCESS(avBufferManager, bufferHandle, newSize) \
     do { \
+        bool _isValidHandle = false; \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, _isValidHandle); \
+        UT_ASSERT_TRUE(_isValidHandle); \
         bool _aidl_return = false; \
         UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[0x%016" PRIx64 "], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
         Status status = avBufferManager->trimSize(bufferHandle, newSize, &_aidl_return); \
@@ -419,6 +422,9 @@ extern sp<IAVBuffer> gAVBufferManager;
 
 #define AVBUFFER_CALCULATESHA_SUCCESS(avBufferManager, poolHandle, sha1Result) \
     do { \
+        bool _isValidHandle = false; \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, poolHandle, _isValidHandle); \
+        UT_ASSERT_TRUE(_isValidHandle); \
         UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[])", poolHandle); \
         Status status = avBufferManager->calculateSHA1(poolHandle, &sha1Result); \
         UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \
