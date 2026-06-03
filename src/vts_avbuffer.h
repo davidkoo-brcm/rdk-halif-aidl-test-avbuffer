@@ -292,6 +292,10 @@ extern sp<IAVBuffer> gAVBufferManager;
             UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
             UT_ASSERT_TRUE(_aidl_return); \
         } \
+        else \
+        { \
+            UT_LOG_WARNING("AVBUFFER_FREE_SUCCESS: bufferHandle [0x%016" PRIx64 "] is invalid, skipping free", bufferHandle); \
+        } \
     } while (0)
 
 #define AVBUFFER_FREE_FAILURE(avBufferManager, bufferHandle, exception) \
