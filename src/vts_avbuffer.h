@@ -277,16 +277,25 @@ extern sp<IAVBuffer> gAVBufferManager;
 
 #define AVBUFFER_FREE_SUCCESS(avBufferManager, bufferHandle) \
     do { \
-        bool _aidl_return = false; \
-        UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return)", bufferHandle); \
-        Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
-        UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
-                    bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
-                    UT_Control_GetMapString(bool_mapTable, status.isOk()), \
-                    UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
-        UT_ASSERT_TRUE(status.isOk()); \
-        UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
-        UT_ASSERT_TRUE(_aidl_return); \
+        bool _isValidHandle = false; \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, _isValidHandle); \
+        if(_isValidHandle) \
+        { \
+            bool _aidl_return = false; \
+            UT_LOG_INFO("Calling free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return)", bufferHandle); \
+            Status status = avBufferManager->free(bufferHandle, &_aidl_return); \
+            UT_LOG_INFO("Result free(IN:bufferHandle:[0x%016" PRIx64 "], OUT:_aidl_return:[%s]), status:[isOK:%s, exception:%s]", \
+                        bufferHandle, UT_Control_GetMapString(bool_mapTable, _aidl_return), \
+                        UT_Control_GetMapString(bool_mapTable, status.isOk()), \
+                        UT_Control_GetMapString(statusException_mapTable, status.exceptionCode())); \
+            UT_ASSERT_TRUE(status.isOk()); \
+            UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
+            UT_ASSERT_TRUE(_aidl_return); \
+        } \
+        else \
+        { \
+            UT_LOG_WARNING("AVBUFFER_FREE_SUCCESS: bufferHandle [0x%016" PRIx64 "] is invalid, skipping free", bufferHandle); \
+        } \
     } while (0)
 
 #define AVBUFFER_FREE_FAILURE(avBufferManager, bufferHandle, exception) \
@@ -343,6 +352,9 @@ extern sp<IAVBuffer> gAVBufferManager;
 
 #define AVBUFFER_TRIMSIZE_SUCCESS(avBufferManager, bufferHandle, newSize) \
     do { \
+        bool _isValidHandle = false; \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, bufferHandle, _isValidHandle); \
+        UT_ASSERT_TRUE(_isValidHandle); \
         bool _aidl_return = false; \
         UT_LOG_INFO("Calling trimSize with video buffer handle(IN:bufferHandle:[0x%016" PRIx64 "], IN:newSize:[%d], OUT:_aidl_return)", bufferHandle, newSize); \
         Status status = avBufferManager->trimSize(bufferHandle, newSize, &_aidl_return); \
@@ -410,6 +422,9 @@ extern sp<IAVBuffer> gAVBufferManager;
 
 #define AVBUFFER_CALCULATESHA_SUCCESS(avBufferManager, poolHandle, sha1Result) \
     do { \
+        bool _isValidHandle = false; \
+        AVBUFFER_ISVALID_SUCCESS(avBufferManager, poolHandle, _isValidHandle); \
+        UT_ASSERT_TRUE(_isValidHandle); \
         UT_LOG_INFO("Calling calculateSHA1 with video buffer handle (IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[])", poolHandle); \
         Status status = avBufferManager->calculateSHA1(poolHandle, &sha1Result); \
         UT_LOG_INFO("Result calculateSHA1(IN:bufferHandle:[0x%016" PRIx64 "], OUT:sha1Result[size:%zu]), status:[isOK:%s, exception:%s]", \

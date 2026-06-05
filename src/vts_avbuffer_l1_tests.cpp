@@ -1350,10 +1350,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, free_neg)
  * **Test Procedure:**@n
  * | Variation / Step | Description | Test Data | Expected Result | Notes |
  * | :----: | --------- | ---------- |-------------- | ----- |
- * | 01 | Log the call to the isValid API | bufferHandle = mBufferHandle | Should be successful | Should be successful |
- * | 02 | Call the isValid API with the buffer handle | bufferHandle = mBufferHandle, isValidResult = false | status.isOk() = true, isValidResult = true | Should Pass |
- * | 03 | Log the result of the isValid API call | bufferHandle = mBufferHandle, isValidResult = true | Should be successful | Should be successful |
- * | 04 | Verify the return value and output parameter | status.isOk() = true, isValidResult = true | Should be successful | Should Pass |
+ * | 01 | Call isValid with sentinel invalid handle (-1) | bufferHandle = -1 | status.isOk() = true, isValidResult = false | Should Pass |
+ * | 02 | Call isValid with arbitrary never-allocated handle (1) | bufferHandle = 1 | status.isOk() = true, isValidResult = false | Should Pass |
+ * | 03 | Allocate video and audio buffers and call isValid | bufferHandle = allocated handle | status.isOk() = true, isValidResult = true | Should Pass |
+ * | 04 | Free the buffers and call isValid on freed handles | bufferHandle = freed handle | status.isOk() = true, isValidResult = false | Should Pass |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
 {
@@ -1365,6 +1365,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
     int64_t videobufferHandle;
     int64_t audioBufferHandle;
     int64_t invalidBufferHandle = -1;
+    int64_t arbitraryBufferHandle = 1;
     bool isValidResult = false;
 
     videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
@@ -1372,8 +1373,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, isValid_pos)
 
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
-    //Test 1: Test with invalid buffer handle
+    //Test 1: Test with invalid buffer handle (-1)
     AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, invalidBufferHandle, isValidResult);
+    UT_ASSERT_FALSE(isValidResult);
+
+    //Test 2: Test with arbitrary never-allocated handle
+    AVBUFFER_ISVALID_SUCCESS(gAVBufferManager, arbitraryBufferHandle, isValidResult);
     UT_ASSERT_FALSE(isValidResult);
 
     for (bool secureHeap : {true, false})
