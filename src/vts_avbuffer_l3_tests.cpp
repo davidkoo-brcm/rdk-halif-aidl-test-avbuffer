@@ -197,7 +197,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             bool isValidResult = false;
             bool isSpaceAvailable = false;
             bool secureHeap = false;
-            int64_t bufferHandle = 0;
+            int64_t bufferHandle = -1;
             void* mapBuffer =  NULL;
             uint32_t mapSize = 0;
             int32_t sizeUsed = 0;
