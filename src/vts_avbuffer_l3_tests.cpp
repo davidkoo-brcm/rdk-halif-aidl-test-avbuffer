@@ -197,7 +197,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
             bool isValidResult = false;
             bool isSpaceAvailable = false;
             bool secureHeap = false;
-            int64_t bufferHandle;
+            int64_t bufferHandle = -1;
             void* mapBuffer =  NULL;
             uint32_t mapSize = 0;
             int32_t sizeUsed = 0;
@@ -282,7 +282,6 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     if((mapBuffer != NULL) && (mapSize >= sizeof(standard_data))){
                         memcpy(mapBuffer, standard_data, sizeof(standard_data));
                         sAVbufferHelper->unmapHandle(bufferHandle);
-                        mapBuffer = NULL;
                     }else {
                         UT_LOG_ERROR("Failed to copy the data to buffer");
                     }
