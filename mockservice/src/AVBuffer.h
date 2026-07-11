@@ -31,6 +31,7 @@
 #include <string>
 #include <utils/StrongPointer.h>
 #include <vector>
+#include <set>
 #include <mutex>
 #include <condition_variable>
 #include <future>
@@ -82,6 +83,9 @@ namespace com {
                     long totalNonSecureBytesUsed;
                     static std::atomic<uint8_t> poolHandleCounter;
                     static std::atomic<int64_t> bufferHandleCounter;
+                    // Pool.handle is signed int8_t (1-127 valid); a never-recycled counter
+                    // wraps negative after 127 creations. createPool() reuses these first.
+                    std::set<uint8_t> freePoolHandles;
                     std::unordered_map<uint8_t, InternalPoolInfo> poolMetricsMap;
                     std::unordered_map<int64_t, BufferInfo> bufferMap;
                     std::unordered_map<uint8_t, std::vector<int64_t>> poolAllocations;
@@ -90,6 +94,9 @@ namespace com {
                     std::mutex poolMutex;
                     std::mutex bufferLock;
                     std::condition_variable _cv;
+
+                    // Reuses a freed pool handle if one is available, else mints a new one.
+                    uint8_t allocatePoolHandle();
 
                 public:
                     AVBuffer();
