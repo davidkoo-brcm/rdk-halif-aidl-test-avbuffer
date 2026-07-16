@@ -18,9 +18,12 @@
 #*
 #* ******************************************************************************
 
-.PHONY: all check-libs
+.PHONY: all check-libs avbufferhelper
 
 MOCK_SERVICE_BIN := MockAVbufferService
+
+AVBUFFERHELPER_DIR := $(CURDIR)/avbufferhelper_impl
+AVBUFFERHELPER_LIB := $(AVBUFFERHELPER_DIR)/libavbufferhelper.so
 
 # BUILD_DIR is the top-level repo build/ directory. When invoked as
 # `make -C vts_hal_test_components/avbuffer/mockservice`, CURDIR is that
@@ -72,7 +75,14 @@ MOCK_SERVICE_CFLAGS := -Wall -Wextra -std=c++17 -ggdb
 
 MOCK_SERVICE_BIN := $(BUILD_DIR)/bin/$(MOCK_SERVICE_BIN)
 
-all: $(MOCK_SERVICE_BIN)
+all: $(MOCK_SERVICE_BIN) avbufferhelper
+
+avbufferhelper: $(AVBUFFERHELPER_LIB)
+	cp $(AVBUFFERHELPER_LIB) $(BUILD_DIR)/usr/lib/
+	install -m 644 $(RDK_HAL_DIR)/avbuffer/current/avbufferhelper.h $(BUILD_DIR)/usr/include/
+
+$(AVBUFFERHELPER_LIB):
+	$(MAKE) -C $(AVBUFFERHELPER_DIR) RDK_HAL_DIR=$(RDK_HAL_DIR)
 
 check-libs:
 	@echo "Checking required libraries..."
