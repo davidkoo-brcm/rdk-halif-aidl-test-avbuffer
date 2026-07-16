@@ -18,11 +18,14 @@
 #*
 #* ******************************************************************************
 
-.PHONY: all check-libs avbufferhelper
+.PHONY: all check-libs check-headers avbufferhelper
 
 MOCK_SERVICE_BIN := MockAVbufferService
 
-AVBUFFERHELPER_DIR := $(CURDIR)/avbufferhelper_impl
+# The real, shm-backed IAVBufferHelper implementation lives one level up at
+# vts_hal_test_components/avbuffer/avbufferhelper_impl/ (used only by the
+# mock) - NOT inside this mockservice/ directory.
+AVBUFFERHELPER_DIR := $(CURDIR)/../avbufferhelper_impl
 AVBUFFERHELPER_LIB := $(AVBUFFERHELPER_DIR)/libavbufferhelper.so
 
 # BUILD_DIR is the top-level repo build/ directory. When invoked as
@@ -64,11 +67,22 @@ MOCK_SERVICE_LDFLAGS := -L$(HALIF_LIB_DIR)
 MOCK_SERVICE_LDFLAGS += -Wl,-rpath-link=$(HALIF_LIB_DIR)
 MOCK_SERVICE_LDFLAGS += -L$(BUILD_DIR)/usr/lib
 MOCK_SERVICE_LDFLAGS += -Wl,-rpath-link=$(BUILD_DIR)/usr/lib
+# The custom linux_binder_idl port of AOSP's libbinder/libutils pulls in
+# sibling liblog/libcutils/libbase (see install_test()'s cleanup list in
+# build.sh) that aren't listed explicitly on this link line. This flag lets
+# the linker resolve those symbols transitively via libbinder's/libutils's
+# own DT_NEEDED entries instead of every mockservice Makefile having to
+# link each of them by name.
 MOCK_SERVICE_LDFLAGS += -Wl,--copy-dt-needed-entries
 # -rpath-link only helps the linker resolve symbols at build time; it is not
-# embedded in the binary. Embed a $ORIGIN-relative RUNPATH so the binary can
-# find its .so dependencies at runtime as long as they are copied alongside
-# it (portable across build host and any deployed target, e.g. QEMU).
+# embedded in the binary. Embed a $ORIGIN-relative RPATH (old-style, via
+# --disable-new-dtags - NOT a RUNPATH) so the binary can find its .so
+# dependencies at runtime as long as they are copied alongside it (portable
+# across build host and any deployed target, e.g. QEMU). RPATH is used
+# deliberately here instead of RUNPATH: it also covers transitive
+# dependency-of-a-dependency lookups between the colocated .so's themselves,
+# none of which carry their own RPATH/RUNPATH - a plain RUNPATH would only
+# apply to this binary's own direct dependencies.
 MOCK_SERVICE_LDFLAGS += -Wl,-rpath,'$$ORIGIN' -Wl,--disable-new-dtags
 
 MOCK_SERVICE_CFLAGS := -Wall -Wextra -std=c++17 -ggdb
@@ -77,12 +91,28 @@ MOCK_SERVICE_BIN := $(BUILD_DIR)/bin/$(MOCK_SERVICE_BIN)
 
 all: $(MOCK_SERVICE_BIN) avbufferhelper
 
+# ./build.sh's generate_avbufferhelper_skeleton() already placed a no-op
+# stub libavbufferhelper.so/avbufferhelper.h into $(BUILD_DIR)/usr/lib and
+# usr/include (a link-time placeholder for real HW/vdevice middleware).
+# For the mock, that stub isn't good enough - decodeBufferWithMetadata()'s
+# frame-content validation in AudioDecoder.cpp/VideoDecoder.cpp actually
+# calls mapHandle() and needs real shared-memory-backed data. This target
+# builds the real implementation and overwrites the stub with it.
 avbufferhelper: $(AVBUFFERHELPER_LIB)
+	@mkdir -p $(BUILD_DIR)/usr/lib $(BUILD_DIR)/usr/include
 	cp $(AVBUFFERHELPER_LIB) $(BUILD_DIR)/usr/lib/
 	install -m 644 $(RDK_HAL_DIR)/avbuffer/current/avbufferhelper.h $(BUILD_DIR)/usr/include/
 
 $(AVBUFFERHELPER_LIB):
 	$(MAKE) -C $(AVBUFFERHELPER_DIR) RDK_HAL_DIR=$(RDK_HAL_DIR)
+
+check-headers:
+	@echo "Checking required header directories..."
+	@test -d "$(AVBUFFER_HEADERS)" || { echo "ERROR: missing avbuffer headers under $(RDK_HAL_DIR)/out/build/include/avbuffer/*/include - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -d "$(AUDIODECODER_HEADERS)" || { echo "ERROR: missing audiodecoder headers under $(RDK_HAL_DIR)/out/build/include/audiodecoder/*/include - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -d "$(VIDEODECODER_HEADERS)" || { echo "ERROR: missing videodecoder headers under $(RDK_HAL_DIR)/out/build/include/videodecoder/*/include - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@test -d "$(COMMON_HEADERS)" || { echo "ERROR: missing common headers under $(RDK_HAL_DIR)/out/build/include/common/*/include - run ./build.sh Target=linux (or arm) first"; exit 1; }
+	@echo "Header check passed"
 
 check-libs:
 	@echo "Checking required libraries..."
@@ -94,7 +124,7 @@ check-libs:
 	@test -e "$(BUILD_DIR)/usr/lib/libutils.so" || { echo "ERROR: missing $(BUILD_DIR)/usr/lib/libutils.so - run ./build.sh Target=linux (or arm) first"; exit 1; }
 	@echo "Library check passed"
 
-$(MOCK_SERVICE_BIN): check-libs $(MOCK_SERVICE_BIN_SRC:%.cpp=%.o)
+$(MOCK_SERVICE_BIN): check-headers check-libs $(MOCK_SERVICE_BIN_SRC:%.cpp=%.o)
 	@mkdir -p $(dir $@)
 	g++ $(MOCK_SERVICE_LDFLAGS) \
 		$(MOCK_SERVICE_BIN_SRC:%.cpp=%.o) -o $@ \

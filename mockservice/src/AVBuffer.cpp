@@ -92,6 +92,16 @@ namespace com {
                         freePoolHandles.erase(it);
                         return handle;
                     }
+                    // Pool.handle is a signed int8_t (1-127 valid); minting past 127 would
+                    // silently become negative once assigned to the AIDL parcelable,
+                    // violating the "successful pool handles are non-negative" contract
+                    // (see AVBUFFER_CREATE_*POOL_SUCCESS's handle >= 0 assertions). Signal
+                    // exhaustion via POOL_INVALID_HANDLE instead of minting past the range -
+                    // callers must fail pool creation when they see this.
+                    if (poolHandleCounter.load(std::memory_order_relaxed) > 127)
+                    {
+                        return POOL_INVALID_HANDLE;
+                    }
                     return poolHandleCounter.fetch_add(1);
                 }
 
@@ -155,6 +165,20 @@ namespace com {
                         this->totalNonSecureBytesUsed += VIDEO_POOL_SIZE;
                     }
                     uint8_t handle = allocatePoolHandle();
+                    if (handle == POOL_INVALID_HANDLE)
+                    {
+                        // No valid handle available (1-127 exhausted) - roll back the heap
+                        // accounting reserved above rather than leaking it on this failure.
+                        if (secureHeap)
+                        {
+                            this->totalSecureBytesUsed -= VIDEO_POOL_SIZE;
+                        }
+                        else
+                        {
+                            this->totalNonSecureBytesUsed -= VIDEO_POOL_SIZE;
+                        }
+                        return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                    }
                     Pool pool;
                     pool.handle = handle;
                     *_aidl_return = pool;
@@ -218,6 +242,20 @@ namespace com {
                         this->totalNonSecureBytesUsed += AUDIO_POOL_SIZE;
                     }
                     uint8_t handle = allocatePoolHandle();
+                    if (handle == POOL_INVALID_HANDLE)
+                    {
+                        // No valid handle available (1-127 exhausted) - roll back the heap
+                        // accounting reserved above rather than leaking it on this failure.
+                        if (secureHeap)
+                        {
+                            this->totalSecureBytesUsed -= AUDIO_POOL_SIZE;
+                        }
+                        else
+                        {
+                            this->totalNonSecureBytesUsed -= AUDIO_POOL_SIZE;
+                        }
+                        return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                    }
                     Pool pool;
                     pool.handle = handle;
                     *_aidl_return = pool;
@@ -346,10 +384,14 @@ namespace com {
                     // Backed by real shared memory so mappers can read/write it. No O_EXCL:
                     // a segment orphaned by a killed prior run could collide with a fresh
                     // handle and wrongly fail with EEXIST; reuse is safe since handles are
-                    // never reused while this process is alive.
+                    // never reused while this process is alive. Mode 0600: only same-UID
+                    // mock/test processes ever need to open this by name, so no reason to
+                    // make it world-read/write on shared/multi-user build machines.
+                    // O_CLOEXEC: closes the race where a concurrent fork()+exec() on another
+                    // thread could otherwise inherit this fd before our own close() below runs.
                     {
                         std::string shmName = shmNameForHandle(bufferHandle);
-                        int shmFd = shm_open(shmName.c_str(), O_CREAT | O_RDWR, 0666);
+                        int shmFd = shm_open(shmName.c_str(), O_CREAT | O_RDWR | O_CLOEXEC, 0600);
                         if (shmFd < 0 || ftruncate(shmFd, size) != 0)
                         {
                             if (shmFd >= 0)
@@ -464,6 +506,21 @@ namespace com {
                     }
 
                     info.size = newSize;
+
+                    // Shrink the backing shm segment to match: mapHandle()/getAllocationSize()
+                    // fstat() this segment directly rather than querying BufferInfo::size, so
+                    // without this they'd keep reporting (and mapping) the pre-trim size,
+                    // letting writers touch bytes past the trimmed boundary.
+                    {
+                        std::string shmName = shmNameForHandle(bufferHandle);
+                        int shmFd = shm_open(shmName.c_str(), O_RDWR | O_CLOEXEC, 0600);
+                        if (shmFd >= 0)
+                        {
+                            ftruncate(shmFd, newSize);
+                            close(shmFd);
+                        }
+                    }
+
                     *_aidl_return = true;
                     return Status::ok();
                 }

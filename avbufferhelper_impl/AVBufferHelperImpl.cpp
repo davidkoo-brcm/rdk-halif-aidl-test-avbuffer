@@ -69,6 +69,19 @@ public:
         }
         *size = 0;
 
+        {
+            std::lock_guard<std::mutex> lock(gMapMutex);
+            auto it = gMappedRegions.find(handle);
+            if (it != gMappedRegions.end())
+            {
+                // Already mapped: return the existing mapping instead of mmap'ing
+                // again and leaking the first one - unmapHandle() only ever
+                // tracks the most recent ptr per handle.
+                *size = it->second.size;
+                return it->second.ptr;
+            }
+        }
+
         std::string name = shmNameForHandle(handle);
         int fd = shm_open(name.c_str(), O_RDWR, 0666);
         if (fd < 0)

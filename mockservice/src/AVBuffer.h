@@ -83,8 +83,11 @@ namespace com {
                     long totalNonSecureBytesUsed;
                     static std::atomic<uint8_t> poolHandleCounter;
                     static std::atomic<int64_t> bufferHandleCounter;
-                    // Pool.handle is signed int8_t (1-127 valid); a never-recycled counter
-                    // wraps negative after 127 creations. createPool() reuses these first.
+                    // Pool.handle is signed int8_t (1-127 valid). createPool() reuses freed
+                    // handles from this set first; once exhausted, allocatePoolHandle() mints
+                    // from the counter but refuses to go past 127 (returns POOL_INVALID_HANDLE
+                    // instead), so createVideoPool()/createAudioPool() fail pool creation
+                    // rather than hand out a handle that would go negative.
                     std::set<uint8_t> freePoolHandles;
                     std::unordered_map<uint8_t, InternalPoolInfo> poolMetricsMap;
                     std::unordered_map<int64_t, BufferInfo> bufferMap;
