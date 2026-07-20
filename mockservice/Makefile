@@ -22,10 +22,10 @@
 
 MOCK_SERVICE_BIN := MockAVbufferService
 
-# The real, shm-backed IAVBufferHelper implementation lives one level up at
-# vts_hal_test_components/avbuffer/avbufferhelper_impl/ (used only by the
-# mock) - NOT inside this mockservice/ directory.
-AVBUFFERHELPER_DIR := $(CURDIR)/../avbufferhelper_impl
+# The real, shm-backed IAVBufferHelper implementation lives at
+# vts_hal_test_components/avbuffer/mockservice/mockavbufferhelper_impl/
+# (used only by the mock).
+AVBUFFERHELPER_DIR := $(CURDIR)/mockavbufferhelper_impl
 AVBUFFERHELPER_LIB := $(AVBUFFERHELPER_DIR)/libavbufferhelper.so
 
 # BUILD_DIR is the top-level repo build/ directory. When invoked as
