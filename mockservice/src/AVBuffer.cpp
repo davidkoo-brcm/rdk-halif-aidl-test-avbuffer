@@ -24,6 +24,11 @@
  */
 
 #include "AVBuffer.h"
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <cstring>
 
 using namespace com::rdk::hal;
 using namespace com::rdk::hal::avbuffer;
@@ -35,6 +40,19 @@ namespace com {
     namespace rdk {
         namespace hal {
             namespace avbuffer {
+
+                // Pool.aidl has no INVALID_POOL constant; poolHandleCounter starts at 1,
+                // so 0 is our own sentinel for "no pool".
+                static constexpr uint8_t POOL_INVALID_HANDLE = 0;
+
+                // Buffer memory is a POSIX shm segment named deterministically from the
+                // handle, so any process can shm_open() it directly - alloc() only returns
+                // an int64_t handle, not an fd. IAVBufferHelper's real implementation uses
+                // the same naming scheme.
+                static std::string shmNameForHandle(int64_t handle)
+                {
+                    return "/vts_avbuf_" + std::to_string(handle);
+                }
 
                 std::atomic<uint8_t> AVBuffer::poolHandleCounter(1);
                 std::atomic<int64_t> AVBuffer::bufferHandleCounter(1);
@@ -64,8 +82,33 @@ namespace com {
                     printf("[SERVICE]AVBuffer service destroyed\n");
                 }
 
+                // Caller must hold poolMutex.
+                uint8_t AVBuffer::allocatePoolHandle()
+                {
+                    if (!freePoolHandles.empty())
+                    {
+                        auto it = freePoolHandles.begin();
+                        uint8_t handle = *it;
+                        freePoolHandles.erase(it);
+                        return handle;
+                    }
+                    // Pool.handle is a signed int8_t (1-127 valid); minting past 127 would
+                    // silently become negative once assigned to the AIDL parcelable,
+                    // violating the "successful pool handles are non-negative" contract
+                    // (see AVBUFFER_CREATE_*POOL_SUCCESS's handle >= 0 assertions). Signal
+                    // exhaustion via POOL_INVALID_HANDLE instead of minting past the range -
+                    // callers must fail pool creation when they see this.
+                    if (poolHandleCounter.load(std::memory_order_relaxed) > 127)
+                    {
+                        return POOL_INVALID_HANDLE;
+                    }
+                    return poolHandleCounter.fetch_add(1);
+                }
+
                 Status AVBuffer::getHeapMetrics(bool secureHeap, HeapMetrics* _aidl_return)
                 {
+                    // Same lock used by create*Pool()/destroyPool() writers.
+                    std::lock_guard<std::mutex> lock(poolMutex);
                     _aidl_return->secure = secureHeap;
 
                     if (secureHeap)
@@ -85,7 +128,7 @@ namespace com {
                 {
                     std::lock_guard<std::mutex> lock(poolMutex);
                     int32_t found = 0;
-                    _aidl_return->handle = Pool::INVALID_POOL;
+                    _aidl_return->handle = POOL_INVALID_HANDLE;
 
                     // Check if decoder ID is invalid
                     if (videoDecoderId.value == IVideoDecoder::Id::UNDEFINED)
@@ -121,8 +164,21 @@ namespace com {
                         }
                         this->totalNonSecureBytesUsed += VIDEO_POOL_SIZE;
                     }
-                    // Create pool handle
-                    uint8_t handle = poolHandleCounter.fetch_add(1);
+                    uint8_t handle = allocatePoolHandle();
+                    if (handle == POOL_INVALID_HANDLE)
+                    {
+                        // No valid handle available (1-127 exhausted) - roll back the heap
+                        // accounting reserved above rather than leaking it on this failure.
+                        if (secureHeap)
+                        {
+                            this->totalSecureBytesUsed -= VIDEO_POOL_SIZE;
+                        }
+                        else
+                        {
+                            this->totalNonSecureBytesUsed -= VIDEO_POOL_SIZE;
+                        }
+                        return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                    }
                     Pool pool;
                     pool.handle = handle;
                     *_aidl_return = pool;
@@ -150,7 +206,7 @@ namespace com {
                 {
                     std::lock_guard<std::mutex> lock(poolMutex);
                     int32_t found = 0;
-                    _aidl_return->handle = Pool::INVALID_POOL;
+                    _aidl_return->handle = POOL_INVALID_HANDLE;
 
                     if (audioDecoderId.value != IAudioDecoder::Id::UNDEFINED)
                     {
@@ -185,8 +241,21 @@ namespace com {
                         }
                         this->totalNonSecureBytesUsed += AUDIO_POOL_SIZE;
                     }
-                    // Create pool handle
-                    uint8_t handle = poolHandleCounter.fetch_add(1);
+                    uint8_t handle = allocatePoolHandle();
+                    if (handle == POOL_INVALID_HANDLE)
+                    {
+                        // No valid handle available (1-127 exhausted) - roll back the heap
+                        // accounting reserved above rather than leaking it on this failure.
+                        if (secureHeap)
+                        {
+                            this->totalSecureBytesUsed -= AUDIO_POOL_SIZE;
+                        }
+                        else
+                        {
+                            this->totalNonSecureBytesUsed -= AUDIO_POOL_SIZE;
+                        }
+                        return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                    }
                     Pool pool;
                     pool.handle = handle;
                     *_aidl_return = pool;
@@ -212,7 +281,8 @@ namespace com {
 
                 Status AVBuffer::destroyPool(const Pool& poolHandle, bool* _aidl_return)
                 {
-                    if (poolHandle.handle == Pool::INVALID_POOL)
+                    std::lock_guard<std::mutex> lock(poolMutex);
+                    if (poolHandle.handle == POOL_INVALID_HANDLE)
                     {
                         *_aidl_return = false;
                         return Status::ok();
@@ -242,15 +312,17 @@ namespace com {
                         this->totalNonSecureBytesUsed -= poolInfo.metrics.bytesTotal;
                     }
 
-                    // Erase pool info from map
+                    // Erase pool info from map and return the handle to the free list for reuse
                     poolMetricsMap.erase(it);
+                    freePoolHandles.insert(poolHandle.handle);
                     *_aidl_return = true;
                     return Status::ok();
                 }
 
                 Status AVBuffer::getPoolMetrics(const Pool& poolHandle, PoolMetrics* _aidl_return)
                 {
-                    if (poolHandle.handle == Pool::INVALID_POOL)
+                    std::lock_guard<std::mutex> lock(poolMutex);
+                    if (poolHandle.handle == POOL_INVALID_HANDLE)
                     {
                         return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
@@ -268,6 +340,7 @@ namespace com {
 
                 Status AVBuffer::getAllPoolMetrics(bool secureHeap, ::std::vector<PoolMetrics>* _aidl_return)
                 {
+                    std::lock_guard<std::mutex> lock(poolMutex);
                     _aidl_return->clear();
                     for (const auto& [handle, info] : poolMetricsMap)
                     {
@@ -281,9 +354,9 @@ namespace com {
 
                 Status AVBuffer::alloc(const Pool& poolHandle, int32_t size, int64_t* _aidl_return)
                 {
-                    *_aidl_return = Pool::INVALID_POOL;
+                    *_aidl_return = POOL_INVALID_HANDLE;
 
-                    if(size <= 0 || poolHandle.handle == Pool::INVALID_POOL)
+                    if(size <= 0 || poolHandle.handle == POOL_INVALID_HANDLE)
                     {
                         return Status::ok();
                     }
@@ -307,6 +380,30 @@ namespace com {
                     }
                     // Allocate buffer handle
                     int64_t bufferHandle = bufferHandleCounter.fetch_add(1);
+
+                    // Backed by real shared memory so mappers can read/write it. No O_EXCL:
+                    // a segment orphaned by a killed prior run could collide with a fresh
+                    // handle and wrongly fail with EEXIST; reuse is safe since handles are
+                    // never reused while this process is alive. Mode 0600: only same-UID
+                    // mock/test processes ever need to open this by name, so no reason to
+                    // make it world-read/write on shared/multi-user build machines.
+                    // O_CLOEXEC: closes the race where a concurrent fork()+exec() on another
+                    // thread could otherwise inherit this fd before our own close() below runs.
+                    {
+                        std::string shmName = shmNameForHandle(bufferHandle);
+                        int shmFd = shm_open(shmName.c_str(), O_CREAT | O_RDWR | O_CLOEXEC, 0600);
+                        if (shmFd < 0 || ftruncate(shmFd, size) != 0)
+                        {
+                            if (shmFd >= 0)
+                            {
+                                close(shmFd);
+                            }
+                            shm_unlink(shmName.c_str());
+                            return Status::fromExceptionCode(Status::EX_SERVICE_SPECIFIC, "HALError::OUT_OF_MEMORY");
+                        }
+                        close(shmFd);
+                    }
+
                     // Store buffer info
                     {
                         std::lock_guard<std::mutex> bufLock(bufferLock);
@@ -330,15 +427,20 @@ namespace com {
                         return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
                     }
 
-                    auto it = poolMetricsMap.find(poolHandle.handle);
-                    if (it == poolMetricsMap.end())
+                    long availableSpace;
                     {
-                        *_aidl_return = false;
-                        return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
+                        // Lock covers only the map read; the listener callback below must run
+                        // unlocked or a listener calling back into alloc()/free() would deadlock.
+                        std::lock_guard<std::mutex> lock(poolMutex);
+                        auto it = poolMetricsMap.find(poolHandle.handle);
+                        if (it == poolMetricsMap.end())
+                        {
+                            *_aidl_return = false;
+                            return Status::fromExceptionCode(Status::EX_ILLEGAL_ARGUMENT);
+                        }
+                        const auto& poolInfo = it->second;
+                        availableSpace = poolInfo.metrics.bytesTotal - poolInfo.metrics.bytesUsed;
                     }
-
-                    const auto& poolInfo = it->second;
-                    long availableSpace = poolInfo.metrics.bytesTotal - poolInfo.metrics.bytesUsed;
 
                     if (availableSpace >= size)
                     {
@@ -371,6 +473,9 @@ namespace com {
                         return Status::ok();
                     }
 
+                    // Lock order must match alloc()'s poolMutex-then-bufferLock nesting
+                    // to avoid an AB-BA deadlock against concurrent alloc()/free() calls.
+                    std::lock_guard<std::mutex> poolLock(poolMutex);
                     std::lock_guard<std::mutex> lock(bufferLock);
 
                     auto it = bufferMap.find(bufferHandle);
@@ -394,21 +499,37 @@ namespace com {
                         *_aidl_return = false;
                         return Status::ok();
                     }
-                    {
-                        std::lock_guard<std::mutex> poolLock(poolMutex);
-                        auto poolIt = poolMetricsMap.find(poolHandle);
-                        if (poolIt != poolMetricsMap.end()) {
-                            poolIt->second.metrics.bytesUsed -= (info.size - newSize);
-                        }
+
+                    auto poolIt = poolMetricsMap.find(poolHandle);
+                    if (poolIt != poolMetricsMap.end()) {
+                        poolIt->second.metrics.bytesUsed -= (info.size - newSize);
                     }
 
                     info.size = newSize;
+
+                    // Shrink the backing shm segment to match: mapHandle()/getAllocationSize()
+                    // fstat() this segment directly rather than querying BufferInfo::size, so
+                    // without this they'd keep reporting (and mapping) the pre-trim size,
+                    // letting writers touch bytes past the trimmed boundary.
+                    {
+                        std::string shmName = shmNameForHandle(bufferHandle);
+                        int shmFd = shm_open(shmName.c_str(), O_RDWR | O_CLOEXEC, 0600);
+                        if (shmFd >= 0)
+                        {
+                            ftruncate(shmFd, newSize);
+                            close(shmFd);
+                        }
+                    }
+
                     *_aidl_return = true;
                     return Status::ok();
                 }
 
                 Status AVBuffer::free(int64_t bufferHandle, bool* _aidl_return)
                 {
+                    // Must match alloc()'s poolMutex-then-bufferLock order - reversing it
+                    // here previously caused an AB-BA deadlock between concurrent calls.
+                    std::lock_guard <std::mutex> poolLock(poolMutex);
                     std::lock_guard <std::mutex> lock(bufferLock);
                     auto it = bufferMap.find(bufferHandle);
                     if (it == bufferMap.end() || !it->second.valid)
@@ -419,13 +540,10 @@ namespace com {
 
                     BufferInfo &info = it->second;
                     const uint8_t poolHandle = info.poolHandle.handle;
+                    auto poolIt = poolMetricsMap.find(poolHandle);
+                    if (poolIt != poolMetricsMap.end())
                     {
-                        std::lock_guard <std::mutex> poolLock(poolMutex);
-                        auto poolIt = poolMetricsMap.find(poolHandle);
-                        if (poolIt != poolMetricsMap.end())
-                        {
-                            poolIt->second.metrics.bytesUsed -= info.size;
-                        }
+                        poolIt->second.metrics.bytesUsed -= info.size;
                     }
 
                     // Mark invalid and remove from allocations list
@@ -433,6 +551,8 @@ namespace com {
 
                     auto &vec = poolAllocations[poolHandle];
                     vec.erase(std::remove(vec.begin(), vec.end(), bufferHandle), vec.end());
+
+                    shm_unlink(shmNameForHandle(bufferHandle).c_str());
 
                     *_aidl_return = true;
                     return Status::ok();

@@ -200,6 +200,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_pos)
  * | 05 | Call createVideoPool with invalidLowId and check the result. | secureHeap = value, videoDecoderId = invalidLowId, listener = listener, videoPool = &videoPool | Status exceptionCode = EX_ILLEGAL_ARGUMENT, videoPool.handle = -1 | Should Fail |
  * | 06 | Call createVideoPool with invalidHighId and check the result. | secureHeap = value, videoDecoderId = invalidHighId, listener = listener, videoPool = &videoPool | Status exceptionCode = EX_ILLEGAL_ARGUMENT, videoPool.handle = -1 | Should Fail |
  * | 07 | Call createVideoPool with invalid listener and check the result. | secureHeap = value, videoDecoderId = validID, listener = nullptr, videoPool = &videoPool | Status exceptionCode = EX_ILLEGAL_ARGUMENT, videoPool.handle = -1 | Should Fail |
+ * | 08 | Call createVideoPool with secureHeap=true when the platform doesn't support secure heap. | secureHeap = true, videoDecoderId = valid, listener = valid, videoPool = &videoPool | Status exceptionCode = EX_ILLEGAL_STATE, videoPool.handle = -1 | Should Fail (skipped if platform supports secure) |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
 {
@@ -207,14 +208,11 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
 
     int32_t invalidLowId = gAVBuffer_hfp.videoDecoderId.front() - 1;
     int32_t invalidHighId = gAVBuffer_hfp.videoDecoderId.back() + 1;
-    HeapMetrics heapMetrics;
-    PoolMetrics videoPoolMetrics;
 
     // Create listener
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
     Pool videoPool;
-    ::std::vector<Pool> videoPools;
     IVideoDecoder::Id videoDecoderId;
 
     // Test with invalidLowId
@@ -234,46 +232,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createVideoPool_neg)
     {
         secureHeap = true;
         videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
-        AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, Status::EX_ILLEGAL_ARGUMENT);
-    }
-
-    // Test out of memory
-    for (bool secureHeap : {true, false})
-    {
-        //Skip if the plafrom doesn't support secure heap
-        if (secureHeap && !gAVBuffer_hfp.supportSecure)
-        {
-            continue;
-        }
-
-        videoDecoderId.value = gAVBuffer_hfp.videoDecoderId.front();
-
-        AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
-        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, videoPool, videoPoolMetrics);
-
-        videoPools.push_back(videoPool);
-
-        /* Exhaust the heap memory */
-        while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= videoPoolMetrics.bytesTotal)
-        {
-            int prev_bytesUsed = heapMetrics.bytesUsed;
-            AVBUFFER_CREATE_VIDEOPOOL_SUCCESS(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool);
-            videoPools.push_back(videoPool);
-            AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
-            if(prev_bytesUsed == heapMetrics.bytesUsed)
-                break;
-        }
-
-        /* Try to allocate the memory */
-        AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, Status::EX_SERVICE_SPECIFIC);
-
-        for (const auto& pool : videoPools)
-        {
-            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, pool);
-        }
-
-        videoPools.clear();
+        AVBUFFER_CREATE_VIDEOPOOL_FAILURE(gAVBufferManager, secureHeap, videoDecoderId, listener, videoPool, Status::EX_ILLEGAL_STATE);
     }
 }
 
@@ -362,17 +321,15 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_pos)
  * | 04 | Test with least value - 1 for audioDecoderId. | secureHeap = false, audioDecoderId = leastValue - 1, listener = valid, audioPool = invalid | Status exceptionCode = EX_ILLEGAL_ARGUMENT, audioPool.handle >= 0 | Should Fail |
  * | 05 | Test with highest value + 1 for audioDecoderId. | secureHeap = false, audioDecoderId = highestValue + 1, listener = valid, audioPool = invalid | Status exceptionCode = EX_ILLEGAL_ARGUMENT, audioPool.handle >= 0 | Should Fail |
  * | 06 | Test with a null listener for a valid audioDecoderId. | secureHeap = false, audioDecoderId = valid, listener = nullptr, audioPool = invalid | Status exceptionCode = EX_ILLEGAL_ARGUMENT, audioPool.handle >= 0 | Should Fail |
+ * | 07 | Test with secureHeap=true when the platform doesn't support secure heap. | secureHeap = true, audioDecoderId = valid, listener = valid, audioPool = invalid | Status exceptionCode = EX_ILLEGAL_STATE, audioPool.handle >= 0 | Should Fail (skipped if platform supports secure) |
  */
 UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
 {
-    bool secureHeap = true;
+    bool secureHeap = false;
     IAudioDecoder::Id audioDecoderId;
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
     sp<IAVBufferSpaceListener> listener_nullptr = nullptr;
     Pool audioPool;
-    ::std::vector<Pool> audioPools;
-    HeapMetrics heapMetrics;
-    PoolMetrics audioPoolMetrics;
 
     int32_t leastValue = gAVBuffer_hfp.audioDecoderId.front();
     int32_t highestValue = gAVBuffer_hfp.audioDecoderId.back();
@@ -397,43 +354,12 @@ UT_ADD_TEST(VTS_L1_AVBuffer, createAudioPool_neg)
     audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front(); // Use a valid ID
     AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener_nullptr, audioPool, Status::EX_NULL_POINTER);
 
-    // Test out of memory
-    for (bool secureHeap : {true, false})
+    // Test with secure flag if platform doesn't support secure
+    if(!gAVBuffer_hfp.supportSecure)
     {
-        //Skip if the plafrom doesn't support secure heap
-        if (secureHeap && !gAVBuffer_hfp.supportSecure)
-        {
-            continue;
-        }
-
+        secureHeap = true;
         audioDecoderId.value = gAVBuffer_hfp.audioDecoderId.front();
-
-        AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
-        AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
-        AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
-
-        audioPools.push_back(audioPool);
-
-        /* Exhaust the heap memory */
-        while((heapMetrics.bytesTotal - heapMetrics.bytesUsed) >= audioPoolMetrics.bytesTotal)
-        {
-            int prev_bytesUsed = heapMetrics.bytesUsed;
-            AVBUFFER_CREATE_AUDIOPOOL_SUCCESS(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool);
-            audioPools.push_back(audioPool);
-            AVBUFFER_GETMETRICS(gAVBufferManager, secureHeap, heapMetrics);
-            if(prev_bytesUsed == heapMetrics.bytesUsed)
-                break;
-        }
-
-        /* Try to allocate the memory */
-        AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_SERVICE_SPECIFIC);
-
-        for (const auto& pool : audioPools)
-        {
-            AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, pool);
-        }
-
-        audioPools.clear();
+        AVBUFFER_CREATE_AUDIOPOOL_FAILURE(gAVBufferManager, secureHeap, audioDecoderId, listener, audioPool, Status::EX_ILLEGAL_STATE);
     }
 }
 
@@ -883,7 +809,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
     // Test Case 1: Invalid Pool Handle
-    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, invalidPool, size, videobufferHandle, Status::EX_NONE);
+    AVBUFFER_ALLOC_FAILURE(gAVBufferManager, invalidPool, size, videobufferHandle, Status::EX_ILLEGAL_ARGUMENT);
 
 
     for (bool secureHeap : {true, false})
@@ -901,13 +827,13 @@ UT_ADD_TEST(VTS_L1_AVBuffer, alloc_neg)
         AVBUFFER_GETPOOL_METRICS_SUCCESS(gAVBufferManager, audioPool, audioPoolMetrics);
 
         // Test Case 2: Size Greater Than Pool Capacity
-        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, videobufferHandle, Status::EX_NONE);
-        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, audioBufferHandle, Status::EX_NONE);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, videoPoolMetrics.bytesTotal + 1, videobufferHandle, Status::EX_SERVICE_SPECIFIC);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, audioPoolMetrics.bytesTotal + 1, audioBufferHandle, Status::EX_SERVICE_SPECIFIC);
 
         // Test Case 3: Zero Size Allocation
-        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, 0, videobufferHandle, Status::EX_NONE);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, videoPool, 0, videobufferHandle, Status::EX_ILLEGAL_ARGUMENT);
 
-        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, 0, audioBufferHandle, Status::EX_NONE);
+        AVBUFFER_ALLOC_FAILURE(gAVBufferManager, audioPool, 0, audioBufferHandle, Status::EX_ILLEGAL_ARGUMENT);
 
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, videoPool);
         AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager, audioPool);
@@ -1133,9 +1059,10 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_pos)
 * **Test Procedure:**@n
 * | Variation / Step | Description | Test Data | Expected Result | Notes |
 * | :----: | --------- | ---------- |-------------- | ----- |
-* | 01 | Attempt to trim size with an invalid buffer handle (not the last allocated) | bufferHandle = mBufferHandle + 1, newSize = 512 | aidl_return = false, status.isOk() = false | Should Fail |
-* | 02 | Attempt to trim size with a valid buffer handle but invalid new size (zero) | bufferHandle = mBufferHandle, newSize = 0 | aidl_return = false, status.isOk() = false | Should Fail |
-* | 03 | Attempt to trim size with a valid buffer handle but new size greater than original size | bufferHandle = mBufferHandle, newSize = 2048 | aidl_return = false, status.isOk() = false | Should Fail |
+* | 01 | Attempt to trim size with an invalid (never allocated) buffer handle | bufferHandle = invalidBufferHandle, newSize = 1024 | status.isOk() = false, exceptionCode = EX_ILLEGAL_ARGUMENT | Should Fail |
+* | 02 | Attempt to trim size with a valid buffer handle but invalid new size (zero) | bufferHandle = mBufferHandle, newSize = 0 | status.isOk() = false, exceptionCode = EX_ILLEGAL_ARGUMENT | Should Fail |
+* | 03 | Attempt to trim size with a valid buffer handle but new size greater than original size | bufferHandle = mBufferHandle, newSize = original size + 1 | status.isOk() = false, exceptionCode = EX_ILLEGAL_ARGUMENT | Should Fail |
+* | 04 | Attempt to trim size on a buffer handle that is not the last allocated from its pool | bufferHandle = mBufferHandle (superseded by a newer allocation), newSize = original size | status.isOk() = false, exceptionCode = EX_ILLEGAL_STATE | Should Fail |
 */
 UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
 {
@@ -1155,7 +1082,7 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
     sp<IAVBufferSpaceListener> listener = new AVBufferSpaceListener();
 
     // Negative Scenario - Invalid bufferHandle
-    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, invalidBufferHandle, new_size, Status::EX_NONE);
+    AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, invalidBufferHandle, new_size, Status::EX_ILLEGAL_ARGUMENT);
 
     for (bool secureHeap : {true, false})
     {
@@ -1172,13 +1099,13 @@ UT_ADD_TEST(VTS_L1_AVBuffer, trimSize_neg)
 
         // Negative Scenario - Invalid newSize (zero) -  Video buffer handle
         new_size = 0;
-        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
-        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_ILLEGAL_ARGUMENT);
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_ILLEGAL_ARGUMENT);
 
         // Negative Scenario - Invalid newSize (greater than original size)
         new_size = size + 1;
-        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_NONE);
-        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_NONE);
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, videobufferHandle, new_size, Status::EX_ILLEGAL_ARGUMENT);
+        AVBUFFER_TRIMSIZE_FAILURE(gAVBufferManager, audioBufferHandle, new_size, Status::EX_ILLEGAL_ARGUMENT);
 
         // Negative Scenario - buffer handle is not last allocated
         AVBUFFER_ALLOC_SUCCESS(gAVBufferManager, videoPool, size, videobufferHandle_new);
