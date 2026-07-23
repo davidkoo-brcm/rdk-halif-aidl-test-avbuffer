@@ -40,7 +40,7 @@ BUILD_DIR ?= $(CURDIR)/../../../build
 # ./build.sh (rdk-halif-aidl/out/...), not from any *_gen/ staging directory
 # (those are only populated by avbuffer's own standalone build.sh).
 RDK_HAL_DIR ?= $(BUILD_DIR)/../rdk-halif-aidl
-HALIF_LIB_DIR ?= $(RDK_HAL_DIR)/out/target/lib/halif
+HALIF_LIB_DIR ?= $(RDK_HAL_DIR)/out/target/lib/rdk-halif-aidl
 
 # Header directories are versioned (e.g. .../avbuffer/0.2.0.0/include)
 # with no "current" alias, so pick whichever version directory build.sh
