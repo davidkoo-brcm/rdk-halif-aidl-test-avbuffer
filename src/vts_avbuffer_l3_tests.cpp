@@ -25,6 +25,11 @@
 #include "com/rdk/hal/audiodecoder/BpAudioDecoderManager.h"
 #include "com/rdk/hal/videodecoder/IVideoDecoderManager.h"
 
+#include <chrono>
+#include <atomic>
+#include <mutex>
+#include <thread>
+
 #define MAX_DECODER_COUNT 5
 
 #define AUDIODECODER_MANAGER_GETAUDIODECODERIDS(decoderIds) \
@@ -95,9 +100,7 @@ const static ut_control_keyStringMapping_t bool_mapTable[] =
 class AVBufferSpaceListener : public BnAVBufferSpaceListener
 {
 private:
-        bool isSpaceAvailable = false;
-        mutable std::mutex mMutex;
-        std::condition_variable mCV;
+    std::atomic<bool> isSpaceAvailable{false};
 
 public:
 
@@ -106,13 +109,22 @@ public:
 
     ::android::binder::Status onSpaceAvailable() override
     {
-        this->isSpaceAvailable = true;
+        isSpaceAvailable.store(true, std::memory_order_release);
         return ::android::binder::Status::ok();
     }
 
-    bool getIsSpaceAvailable()
+    bool waitForSpaceAvailable(std::chrono::milliseconds timeout)
     {
-        return this->isSpaceAvailable;
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (!isSpaceAvailable.load(std::memory_order_acquire))
+        {
+            if (std::chrono::steady_clock::now() >= deadline)
+            {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return true;
     }
 };
 
@@ -207,6 +219,10 @@ class VTS_L3_AVBuffer : public virtual UTCore
             uint8_t standard_data_sha1[20] = {0};
             std::vector<uint8_t> sha1Result;
             sp<AVBufferSpaceListener> listener = new AVBufferSpaceListener();
+            {
+                std::lock_guard<std::mutex> lock(sResourceMutex);
+                sSpaceListeners.emplace_back(listener);
+            }
             ut_kvp_instance_t* kvpTestInstance = (ut_kvp_instance_t*)gAvBufferTestConfiguration;
 
             if(testConfig & SECUREHEAP_TEST)
@@ -259,7 +275,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
 
             if(testConfig & NOTIFY_TEST)
             {
-                isSpaceAvailable = listener->getIsSpaceAvailable();
+                isSpaceAvailable = listener->waitForSpaceAvailable(std::chrono::seconds(2));
                 UT_ASSERT_TRUE(isSpaceAvailable);
             }
             if(testConfig & READWRITE_TEST )
@@ -311,10 +327,6 @@ class VTS_L3_AVBuffer : public virtual UTCore
                     }
                 }
             }
-            {
-                std::lock_guard<std::mutex> lock(sResourceMutex);
-                sSpaceListeners.emplace_back(listener);
-            }
         }
         void destroyPools(uint8_t testConfig)
         {
@@ -329,7 +341,6 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,pool);
             }
             sPoolsCreated.clear();
-            sSpaceListeners.clear();
 
         }
 
