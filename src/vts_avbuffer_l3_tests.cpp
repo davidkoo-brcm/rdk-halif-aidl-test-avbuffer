@@ -122,7 +122,7 @@ public:
             {
                 return false;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         return true;
     }
@@ -228,6 +228,11 @@ class VTS_L3_AVBuffer : public virtual UTCore
             if(testConfig & SECUREHEAP_TEST)
             {
                 secureHeap = true;
+            }
+
+            if (secureHeap && !gAVBuffer_hfp.supportSecure)
+            {
+                UT_IGNORE_TEST() << "secureHeapBytes is not defined or is zero in the HFP";
             }
 
             if(testSelection == AUDIO_TEST){
@@ -341,7 +346,7 @@ class VTS_L3_AVBuffer : public virtual UTCore
                 AVBUFFER_DESTROY_POOL_SUCCESS(gAVBufferManager,pool);
             }
             sPoolsCreated.clear();
-
+            sSpaceListeners.clear();
         }
 
         void runTest(int8_t testSelection,bool isConcurrent, uint8_t testConfig){
