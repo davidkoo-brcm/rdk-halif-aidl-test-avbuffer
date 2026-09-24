@@ -24,6 +24,6 @@
 
 avbuffer:
   interfaceVersion: current
-  nonSecureHeapBytes: 28311552
+  nonSecureHeapBytes: 2147483647
   secureHeapBytes: 0
   supportsSHA1: true
