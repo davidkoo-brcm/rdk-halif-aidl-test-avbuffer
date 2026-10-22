@@ -24,6 +24,23 @@
 
 avbuffer:
   interfaceVersion: current
-  nonSecureHeapBytes: 2147483647
-  secureHeapBytes: 0
+  nonSecureHeapBytes: 28311552
+  secureHeapBytes: 28311552
   supportsSHA1: true
+
+# Video decoder section: the AVBuffer tests read the video decoder IDs from here
+# (createVideoPool_*). Only the IDs are used. The Broadcom video decoder HAL
+# exposes two decoders (MAX_DECODERS == 2).
+videodecoder:
+  interfaceVersion: current
+  IVideoDecoder:
+    - 0
+    - 1
+
+# Audio decoder section: the AVBuffer tests read the audio decoder IDs from here
+# (createAudioPool_*). Broadcom audio decoder HAL exposes two decoders.
+audiodecoder:
+  interfaceVersion: current
+  IAudioDecoder:
+    - 0
+    - 1
